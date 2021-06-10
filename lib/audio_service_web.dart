@@ -4,13 +4,14 @@ import 'dart:js' as js;
 
 import 'js/media_session_web.dart';
 
-import 'package:audio_service/audio_service.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_web_plugins/flutter_web_plugins.dart';
+import 'package:audio_service/audio/media/audio_media_resource.dart';
+import 'package:audio_service/audio/service/audio_service_controller.dart';
 
 const String _CUSTOM_PREFIX = 'custom_';
 
-class AudioServicePlugin {
+class AudioServiceControllerPlugin {
   late int fastForwardInterval;
   late int rewindInterval;
   Map? params;
@@ -19,25 +20,25 @@ class AudioServicePlugin {
   late BackgroundHandler backgroundHandler;
 
   static void registerWith(Registrar registrar) {
-    AudioServicePlugin(registrar);
+    AudioServiceControllerPlugin(registrar);
   }
 
-  AudioServicePlugin(Registrar registrar) {
+  AudioServiceControllerPlugin(Registrar registrar) {
     clientHandler = ClientHandler(this, registrar);
     backgroundHandler = BackgroundHandler(this, registrar);
   }
 }
 
 class ClientHandler {
-  final AudioServicePlugin plugin;
+  final AudioServiceControllerPlugin plugin;
   final MethodChannel channel;
 
   ClientHandler(this.plugin, Registrar registrar)
       : channel = MethodChannel(
-          'ryanheise.com/audioService',
-          const StandardMethodCodec(),
-          registrar,
-        ) {
+    'ryanheise.com/audioServiceController',
+    const StandardMethodCodec(),
+    registrar,
+  ) {
     channel.setMethodCallHandler(handleServiceMethodCall);
   }
 
@@ -53,13 +54,13 @@ class ClientHandler {
         plugin.started = true;
         return plugin.started;
       case 'connect':
-        // No-op not really anything for us to do with connect on the web, the
-        // streams should all be hydrated
+      // No-op not really anything for us to do with connect on the web, the
+      // streams should all be hydrated
         break;
       case 'disconnect':
-        // No-op not really anything for us to do with disconnect on the web,
-        // the streams should stay hydrated because everything is static and we
-        // aren't working with isolates
+      // No-op not really anything for us to do with disconnect on the web,
+      // the streams should stay hydrated because everything is static and we
+      // aren't working with isolates
         break;
       case 'isRunning':
         return plugin.started;
@@ -90,8 +91,8 @@ class ClientHandler {
         return plugin.backgroundHandler
             .invokeMethod('onLoadChildren', [call.arguments]);
       case 'onClick':
-        // No-op we don't really have the idea of a bluetooth button click on
-        // the web
+      // No-op we don't really have the idea of a bluetooth button click on
+      // the web
         break;
       case 'addQueueItem':
         return plugin.backgroundHandler
@@ -143,16 +144,16 @@ class ClientHandler {
 }
 
 class BackgroundHandler {
-  final AudioServicePlugin plugin;
+  final AudioServiceControllerPlugin plugin;
   final MethodChannel channel;
   MediaItem? mediaItem;
 
   BackgroundHandler(this.plugin, Registrar registrar)
       : channel = MethodChannel(
-          'ryanheise.com/audioServiceBackground',
-          const StandardMethodCodec(),
-          registrar,
-        ) {
+    'ryanheise.com/audioServiceControllerBackground',
+    const StandardMethodCodec(),
+    registrar,
+  ) {
     channel.setMethodCallHandler(handleBackgroundMethodCall);
   }
 
@@ -174,13 +175,13 @@ class BackgroundHandler {
       case 'setQueue':
         return setQueue(call);
       case 'androidForceEnableMediaButtons':
-        //no-op
+      //no-op
         break;
       default:
         throw PlatformException(
             code: 'Unimplemented',
             details:
-                "The audio service background plugin for web doesn't implement "
+            "The audio service background plugin for web doesn't implement "
                 "the method '${call.method}'");
     }
   }
@@ -188,10 +189,10 @@ class BackgroundHandler {
   Future<bool> started(MethodCall call) async => true;
 
   Future<dynamic> ready(MethodCall call) async => {
-        'fastForwardInterval': plugin.fastForwardInterval,
-        'rewindInterval': plugin.rewindInterval,
-        'params': plugin.params
-      };
+    'fastForwardInterval': plugin.fastForwardInterval,
+    'rewindInterval': plugin.rewindInterval,
+    'params': plugin.params
+  };
 
   Future<void> stopped(MethodCall call) async {
     final session = html.window.navigator.mediaSession!;
@@ -206,9 +207,9 @@ class BackgroundHandler {
     final List args = call.arguments!;
     final List<MediaControl> controls = call.arguments[0]
         .map<MediaControl>((element) => MediaControl(
-            action: MediaAction.values[element['action']],
-            androidIcon: element['androidIcon'],
-            label: element['label']))
+        action: MediaAction.values[element['action']],
+        androidIcon: element['androidIcon'],
+        label: element['label']))
         .toList();
 
     // Reset the handlers
@@ -228,31 +229,31 @@ class BackgroundHandler {
       try {
         switch (control.action) {
           case MediaAction.play:
-            session.setActionHandler('play', AudioService.play);
+            session.setActionHandler('play', AudioServiceController.play);
             break;
           case MediaAction.pause:
-            session.setActionHandler('pause', AudioService.pause);
+            session.setActionHandler('pause', AudioServiceController.pause);
             break;
           case MediaAction.skipToPrevious:
             session.setActionHandler(
-                'previoustrack', AudioService.skipToPrevious);
+                'previoustrack', AudioServiceController.skipToPrevious);
             break;
           case MediaAction.skipToNext:
-            session.setActionHandler('nexttrack', AudioService.skipToNext);
+            session.setActionHandler('nexttrack', AudioServiceController.skipToNext);
             break;
-          // The naming convention here is a bit odd but seekbackward seems more
-          // analagous to rewind than seekBackward
+        // The naming convention here is a bit odd but seekbackward seems more
+        // analagous to rewind than seekBackward
           case MediaAction.rewind:
-            session.setActionHandler('seekbackward', AudioService.rewind);
+            session.setActionHandler('seekbackward', AudioServiceController.rewind);
             break;
           case MediaAction.fastForward:
-            session.setActionHandler('seekforward', AudioService.fastForward);
+            session.setActionHandler('seekforward', AudioServiceController.fastForward);
             break;
           case MediaAction.stop:
-            session.setActionHandler('stop', AudioService.stop);
+            session.setActionHandler('stop', AudioServiceController.stop);
             break;
           default:
-            // no-op
+          // no-op
             break;
         }
       } catch (e) {}
@@ -270,14 +271,14 @@ class BackgroundHandler {
               //print(ev.action);
               //print(ev.seekTime);
               // Chrome uses seconds for whatever reason
-              AudioService.seekTo(Duration(
+              AudioServiceController.seekTo(Duration(
                 milliseconds: (ev.seekTime * 1000).round(),
               ));
             }));
           } catch (e) {}
           break;
         default:
-          // no-op
+        // no-op
           break;
       }
 
@@ -319,7 +320,7 @@ class BackgroundHandler {
     mediaItem = MediaItem.fromJson(call.arguments);
     // This would be how we could pull images out of the cache... But nothing is actually cached on web
     final artUri = /* mediaItem.extras['artCacheFile'] ?? */
-        mediaItem!.artUri;
+    mediaItem!.artUri;
 
     try {
       metadata = html.MediaMetadata({
