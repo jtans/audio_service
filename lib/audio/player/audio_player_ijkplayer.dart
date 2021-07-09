@@ -9,8 +9,15 @@ import 'package:flutter_ijkplayer/flutter_ijkplayer.dart';
 class IjkAudioPlayer implements IAudioPlayer {
 
   IjkMediaController mediaController;
+  double _mCurrentSpeed = 1.0;
 
-  IjkAudioPlayer(this.mediaController);
+  Stream<VideoInfo>? videoInfoStream;
+  Stream<IjkStatus>? statusStream;
+
+  IjkAudioPlayer(this.mediaController) :
+        videoInfoStream = mediaController.videoInfoStream,
+        statusStream = mediaController.ijkStatusStream;
+
 
   @override
   void setNetworkDataSource(String netUrl) {
@@ -28,17 +35,17 @@ class IjkAudioPlayer implements IAudioPlayer {
   }
 
   @override
-  void seekTo(double position) {
-    mediaController.seekTo(position);
+  Future<void> seekTo(Duration position) async {
+    mediaController.seekTo(position.inMilliseconds.toDouble());
   }
 
   @override
-  void play() {
+  Future<void> play() async {
     mediaController.play();
   }
 
   @override
-  void pause() {
+  Future<void> pause() async {
     mediaController.pause();
   }
 
@@ -48,7 +55,7 @@ class IjkAudioPlayer implements IAudioPlayer {
   }
 
   @override
-  void stop() {
+  Future<void> stop() async {
     mediaController.stop();
   }
 
@@ -59,8 +66,13 @@ class IjkAudioPlayer implements IAudioPlayer {
 
   ///支持的倍率默认为 1.0, 上限不明,下限请不要小于等于 0,否则可能会 crash
   @override
-  void setSpeed(double speed) {
+  Future<void> setSpeed(double speed) async {
+    _mCurrentSpeed = speed;
     mediaController.setSpeed(speed);
+  }
+
+  double getSpeed() {
+    return _mCurrentSpeed;
   }
 
   @override
@@ -74,13 +86,13 @@ class IjkAudioPlayer implements IAudioPlayer {
   }
 
   @override
-  Future<double> getCurrentPosition() async {
-    return await mediaController.getVideoInfo().then((value) => value.currentPosition ?? 0);
+  Future<Duration> getCurrentPosition() async {
+    return await mediaController.getVideoInfo().then((value) => Duration(milliseconds: (value.currentPosition ?? 0).toInt()));
   }
 
   @override
-  Future<double> getDuration() async {
-    return await mediaController.getVideoInfo().then((value) => value.duration);
+  Future<Duration> getDuration() async {
+    return await mediaController.getVideoInfo().then((value) => Duration(milliseconds: value.duration.toInt()));
   }
 
 }

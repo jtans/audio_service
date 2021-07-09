@@ -339,7 +339,67 @@ class AudioServiceBackground {
   /// this calculation is provided by [PlaybackState.currentPosition].
   ///
   /// The playback [speed] is given as a double where 1.0 means normal speed.
-  static Future<void> setState({
+  static Future<void> updateNotificationState({
+    List<MediaControl>? controls,
+    List<MediaAction>? systemActions,
+    AudioProcessingState? processingState,
+    bool? playing,
+    Duration? position,
+    Duration? bufferedPosition,
+    double? speed,
+    DateTime? updateTime,
+    List<int>? androidCompactActions,
+    AudioServiceRepeatMode? repeatMode,
+    AudioServiceShuffleMode? shuffleMode,
+  }) async {
+    controls ??= _controls;
+    systemActions ??= _systemActions;
+    processingState ??= _state.processingState;
+    playing ??= _state.playing;
+    position ??= _state.currentPosition;
+    updateTime ??= DateTime.now();
+    bufferedPosition ??= _state.bufferedPosition;
+    speed ??= _state.speed;
+    repeatMode ??= _state.repeatMode;
+    shuffleMode ??= _state.shuffleMode;
+    _controls = controls;
+    _systemActions = systemActions;
+    _state = PlaybackState(
+      processingState: processingState,
+      playing: playing,
+      actions: controls.map((control) => control.action).toSet(),
+      position: position,
+      bufferedPosition: bufferedPosition,
+      speed: speed,
+      updateTime: updateTime,
+      repeatMode: repeatMode,
+      shuffleMode: shuffleMode,
+    );
+    List<Map> rawControls = controls
+        .map((control) => {
+      'androidIcon': control.androidIcon,
+      'label': control.label,
+      'action': control.action.index,
+    })
+        .toList();
+    final rawSystemActions =
+    systemActions.map((action) => action.index).toList();
+    await _backgroundChannel.invokeMethod('setState', [
+      rawControls,
+      rawSystemActions,
+      processingState.index,
+      playing,
+      position.inMilliseconds,
+      bufferedPosition.inMilliseconds,
+      speed,
+      updateTime.millisecondsSinceEpoch,
+      androidCompactActions,
+      repeatMode.index,
+      shuffleMode.index,
+    ]);
+  }
+
+  static Future<void> setPlaybackState({
     List<MediaControl>? controls,
     List<MediaAction>? systemActions,
     AudioProcessingState? processingState,

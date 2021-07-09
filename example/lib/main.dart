@@ -47,7 +47,10 @@ class MainScreen extends StatelessWidget {
 
 }
 
-
+List<String> mp3List = [
+  "https://s3.amazonaws.com/scifri-episodes/scifri20181123-episode.mp3",
+  "https://s3.amazonaws.com/scifri-segments/scifri201711241.mp3",
+];
 //音频播放页面
 class AudioPlayerPageRoute extends StatelessWidget {
   @override
@@ -65,7 +68,14 @@ class AudioPlayerPageRoute extends StatelessWidget {
         ),
       ),
       body: Center(
-        child: AudioServiceLocalWidget(child: AudioPlayerWidget(),),
+        child: AudioServiceLocalWidget(child: AudioPlayerWidget()
+//          , onConnectResult: (success) {
+//          print("xiong --- MusicService connect result = $success");
+//          if (success) {
+//            AudioServiceController.customAction(CUSTOM_CMD_ADD_MP3_RES, mp3List);//MediaLibrary().items
+//          }
+//        },
+  ),
       ),
     );
   }
@@ -146,20 +156,31 @@ class AudioPlayerWidget extends StatelessWidget {
                   },
                 ),
                 // A seek bar.
-                StreamBuilder<MediaState>(
-                  stream: _mediaStateStream,
-                  builder: (context, snapshot) {
-                    final mediaState = snapshot.data;
-                    return SeekBar(
-                      duration:
-                      mediaState?.mediaItem?.duration ?? Duration.zero,
-                      position: mediaState?.position ?? Duration.zero,
-                      onChangeEnd: (newPosition) {
-                        AudioServiceController.seekTo(newPosition);
-                      },
-                    );
-                  },
-                ),
+//                StreamBuilder<MediaState>(
+//                  stream: _mediaStateStream,
+//                  builder: (context, snapshot) {
+//                    final mediaState = snapshot.data;
+//                    return SeekBar(
+//                      duration:
+//                      mediaState?.mediaItem?.duration ?? Duration.zero,
+//                      position: mediaState?.position ?? Duration.zero,
+//                      onChangeEnd: (newPosition) {
+//                        AudioServiceController.seekTo(newPosition);
+//                      },
+//                    );
+//                  },
+//                ),
+                StreamBuilder<PlaybackState>(
+                    stream: AudioServiceController.playbackStateStream,
+                    builder: (context, snapshot) {
+                      return SeekBar(
+                          duration: Duration(minutes: 2),
+                          position: snapshot.data?.currentPosition ?? Duration.zero,
+                          onChangeEnd: (newPosition) {
+                            AudioServiceController.seekTo(newPosition);
+                          },
+                      );
+                    }),
                 // Display the processing state.
                 StreamBuilder<AudioProcessingState>(
                   stream: AudioServiceController.playbackStateStream
@@ -207,6 +228,12 @@ class AudioPlayerWidget extends StatelessWidget {
         androidNotificationColor: 0xFF2196f3,
         androidNotificationIcon: 'mipmap/ic_launcher',
         androidEnableQueue: true,
+      ).then((value) {
+        print("xiong --- MusicService start result = $value");
+          if (value) {
+            AudioServiceController.customAction(CUSTOM_CMD_ADD_MP3_RES, mp3List);//MediaLibrary().items
+          }
+        },
       );
     },
   );
@@ -238,7 +265,7 @@ class AudioPlayerWidget extends StatelessWidget {
 
 // NOTE: Your entrypoint MUST be a top-level function.
 void _audioPlayerTaskEntryPoint() async {
-  AudioServiceBackground.run(() => AudioPlayerBackgroundTask(AudioPlayer()));
+  AudioServiceBackground.run(() => AudioPlayerBackgroundTask());
 }
 
 

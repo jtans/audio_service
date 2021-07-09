@@ -11,7 +11,7 @@ import 'package:audio_service/audio/service/audio_service_controller.dart';
 
 const String _CUSTOM_PREFIX = 'custom_';
 
-class AudioServiceControllerPlugin {
+class AudioServicePlugin {
   late int fastForwardInterval;
   late int rewindInterval;
   Map? params;
@@ -20,25 +20,25 @@ class AudioServiceControllerPlugin {
   late BackgroundHandler backgroundHandler;
 
   static void registerWith(Registrar registrar) {
-    AudioServiceControllerPlugin(registrar);
+    AudioServicePlugin(registrar);
   }
 
-  AudioServiceControllerPlugin(Registrar registrar) {
+  AudioServicePlugin(Registrar registrar) {
     clientHandler = ClientHandler(this, registrar);
     backgroundHandler = BackgroundHandler(this, registrar);
   }
 }
 
 class ClientHandler {
-  final AudioServiceControllerPlugin plugin;
+  final AudioServicePlugin plugin;
   final MethodChannel channel;
 
   ClientHandler(this.plugin, Registrar registrar)
       : channel = MethodChannel(
-    'ryanheise.com/audioServiceController',
-    const StandardMethodCodec(),
-    registrar,
-  ) {
+          'ryanheise.com/audioService',
+          const StandardMethodCodec(),
+          registrar,
+        ) {
     channel.setMethodCallHandler(handleServiceMethodCall);
   }
 
@@ -54,13 +54,13 @@ class ClientHandler {
         plugin.started = true;
         return plugin.started;
       case 'connect':
-      // No-op not really anything for us to do with connect on the web, the
-      // streams should all be hydrated
+        // No-op not really anything for us to do with connect on the web, the
+        // streams should all be hydrated
         break;
       case 'disconnect':
-      // No-op not really anything for us to do with disconnect on the web,
-      // the streams should stay hydrated because everything is static and we
-      // aren't working with isolates
+        // No-op not really anything for us to do with disconnect on the web,
+        // the streams should stay hydrated because everything is static and we
+        // aren't working with isolates
         break;
       case 'isRunning':
         return plugin.started;
@@ -91,8 +91,8 @@ class ClientHandler {
         return plugin.backgroundHandler
             .invokeMethod('onLoadChildren', [call.arguments]);
       case 'onClick':
-      // No-op we don't really have the idea of a bluetooth button click on
-      // the web
+        // No-op we don't really have the idea of a bluetooth button click on
+        // the web
         break;
       case 'addQueueItem':
         return plugin.backgroundHandler
@@ -144,16 +144,16 @@ class ClientHandler {
 }
 
 class BackgroundHandler {
-  final AudioServiceControllerPlugin plugin;
+  final AudioServicePlugin plugin;
   final MethodChannel channel;
   MediaItem? mediaItem;
 
   BackgroundHandler(this.plugin, Registrar registrar)
       : channel = MethodChannel(
-    'ryanheise.com/audioServiceControllerBackground',
-    const StandardMethodCodec(),
-    registrar,
-  ) {
+          'ryanheise.com/audioServiceBackground',
+          const StandardMethodCodec(),
+          registrar,
+        ) {
     channel.setMethodCallHandler(handleBackgroundMethodCall);
   }
 
@@ -175,13 +175,13 @@ class BackgroundHandler {
       case 'setQueue':
         return setQueue(call);
       case 'androidForceEnableMediaButtons':
-      //no-op
+        //no-op
         break;
       default:
         throw PlatformException(
             code: 'Unimplemented',
             details:
-            "The audio service background plugin for web doesn't implement "
+                "The audio service background plugin for web doesn't implement "
                 "the method '${call.method}'");
     }
   }
@@ -189,10 +189,10 @@ class BackgroundHandler {
   Future<bool> started(MethodCall call) async => true;
 
   Future<dynamic> ready(MethodCall call) async => {
-    'fastForwardInterval': plugin.fastForwardInterval,
-    'rewindInterval': plugin.rewindInterval,
-    'params': plugin.params
-  };
+        'fastForwardInterval': plugin.fastForwardInterval,
+        'rewindInterval': plugin.rewindInterval,
+        'params': plugin.params
+      };
 
   Future<void> stopped(MethodCall call) async {
     final session = html.window.navigator.mediaSession!;
@@ -207,9 +207,9 @@ class BackgroundHandler {
     final List args = call.arguments!;
     final List<MediaControl> controls = call.arguments[0]
         .map<MediaControl>((element) => MediaControl(
-        action: MediaAction.values[element['action']],
-        androidIcon: element['androidIcon'],
-        label: element['label']))
+            action: MediaAction.values[element['action']],
+            androidIcon: element['androidIcon'],
+            label: element['label']))
         .toList();
 
     // Reset the handlers

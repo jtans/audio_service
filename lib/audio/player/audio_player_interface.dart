@@ -14,13 +14,13 @@ abstract class IAudioPlayer {
 
   ///跳转播放进度到 [position]
   ///[position] -- 目标进度：单位是秒, 如1秒100毫秒=1.1s
-  void seekTo(double position);
+  Future<void> seekTo(Duration position);
 
   ///播放
-  void play();
+  Future<void> play();
 
   ///暂停
-  void pause();
+  Future<void> pause();
 
   ///重置播放器
   ///重置后需要重新设置数据源
@@ -28,13 +28,16 @@ abstract class IAudioPlayer {
 
   ///停止播放器
   ///暂停当前播放，播放进度回到开头
-  void stop();
+  Future<void> stop();
 
   ///释放资源
   void dispose();
 
   ///设置播放速度
-  void setSpeed(double speed);
+  Future<void> setSpeed(double speed);
+
+  ///获取播放速度
+  double getSpeed();
 
   ///设置播放器音量
   ///[volume] -- 范围：0 ~ 100
@@ -44,8 +47,8 @@ abstract class IAudioPlayer {
   bool isPlaying();
 
   ///获取当前播放进度
-  Future<double> getCurrentPosition();
+  Future<Duration> getCurrentPosition();
 
   ///获取播放总时长
-  Future<double> getDuration();
+  Future<Duration> getDuration();
 }

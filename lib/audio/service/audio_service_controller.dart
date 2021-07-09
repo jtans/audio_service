@@ -17,6 +17,8 @@ const CUSTOM_PREFIX = "custom_";
 const CUSTOM_EVENT_PORT_NAME = 'customEventPort';
 const MethodChannel _channel = const MethodChannel('ryanheise.com/audioService');
 
+
+
 /// Client API to connect with and communciate with the background audio task.
 ///
 /// You may use this API from your UI to send start/pause/play/stop/etc messages
@@ -33,6 +35,7 @@ const MethodChannel _channel = const MethodChannel('ryanheise.com/audioService')
 ///
 /// 音频后台服务播放控制器
 /// 主要用于与音频后台服务进行通信，传输音频前端页面发出的音频控制指令
+/// TODO xiong -- 补充：回调接口设置
 class AudioServiceController {
   /// True if the background task runs in its own isolate, false if it doesn't.
   static bool get usesIsolate => !(kIsWeb || Platform.isMacOS) && !testMode;
@@ -40,59 +43,6 @@ class AudioServiceController {
   /// The root media ID for browsing media provided by the background
   /// task.
   static const String MEDIA_ROOT_ID = "root";
-
-  static final _browseMediaChildrenSubject = BehaviorSubject<List<MediaItem>?>();
-
-  /// A stream that broadcasts the children of the current browse
-  /// media parent.
-  static ValueStream<List<MediaItem>?> get browseMediaChildrenStream =>
-      _browseMediaChildrenSubject.stream;
-
-  /// The children of the current browse media parent.
-  static List<MediaItem>? get browseMediaChildren =>
-      _browseMediaChildrenSubject.nvalue;
-
-  static final _playbackStateSubject = BehaviorSubject<PlaybackState>();
-
-  /// A stream that broadcasts the playback state.
-  static ValueStream<PlaybackState> get playbackStateStream =>
-      _playbackStateSubject.stream;
-
-  /// The current playback state.
-  static PlaybackState get playbackState =>
-      _playbackStateSubject.nvalue ?? AudioServiceBackground.noneState;
-
-  static final _currentMediaItemSubject = BehaviorSubject<MediaItem?>();
-
-  /// A stream that broadcasts the current [MediaItem].
-  static ValueStream<MediaItem?> get currentMediaItemStream =>
-      _currentMediaItemSubject.stream;
-
-  /// The current [MediaItem].
-  static MediaItem? get currentMediaItem => _currentMediaItemSubject.nvalue;
-
-  static final _queueSubject = BehaviorSubject<List<MediaItem>?>();
-
-  /// A stream that broadcasts the queue.
-  static ValueStream<List<MediaItem>?> get queueStream => _queueSubject.stream;
-
-  /// The current queue.
-  static List<MediaItem>? get queue => _queueSubject.nvalue;
-
-  static final _notificationSubject = BehaviorSubject.seeded(false);
-
-  /// A stream that broadcasts the status of the notificationClick event.
-  static ValueStream<bool> get notificationClickEventStream =>
-      _notificationSubject.stream;
-
-  /// The status of the notificationClick event.
-  static bool get notificationClickEvent =>
-      _notificationSubject.nvalue ?? false;
-
-  static final _customEventSubject = PublishSubject<dynamic>();
-
-  /// A stream that broadcasts custom events sent from the background.
-  static Stream<dynamic> get customEventStream => _customEventSubject.stream;
 
   /// If a seek is in progress, this holds the position we are seeking to.
   static Duration? _seekPos;
@@ -105,6 +55,65 @@ class AudioServiceController {
   static StreamSubscription? _customEventSubscription;
 
   static Completer<void>? _startNonIsolateCompleter;
+
+  /// ---------------------- browserChildren Notify ----------------------///
+  static final _browseMediaChildrenSubject = BehaviorSubject<List<MediaItem>?>();
+
+  /// A stream that broadcasts the children of the current browse
+  /// media parent.
+  static ValueStream<List<MediaItem>?> get browseMediaChildrenStream =>
+      _browseMediaChildrenSubject.stream;
+
+  /// The children of the current browse media parent.
+  static List<MediaItem>? get browseMediaChildren =>
+      _browseMediaChildrenSubject.nvalue;
+
+  /// ----------------------- playbackState Notify -----------------------///
+  static final _playbackStateSubject = BehaviorSubject<PlaybackState>();
+
+  /// A stream that broadcasts the playback state.
+  static ValueStream<PlaybackState> get playbackStateStream =>
+      _playbackStateSubject.stream;
+
+  /// The current playback state.
+  static PlaybackState get playbackState =>
+      _playbackStateSubject.nvalue ?? AudioServiceBackground.noneState;
+
+  /// ------------------------- MediaItem Notify -------------------------///
+  static final _currentMediaItemSubject = BehaviorSubject<MediaItem?>();
+
+  /// A stream that broadcasts the current [MediaItem].
+  static ValueStream<MediaItem?> get currentMediaItemStream =>
+      _currentMediaItemSubject.stream;
+
+  /// The current [MediaItem].
+  static MediaItem? get currentMediaItem => _currentMediaItemSubject.nvalue;
+
+  /// ------------------------- MediaQueue Notify -------------------------///
+  static final _queueSubject = BehaviorSubject<List<MediaItem>?>();
+
+  /// A stream that broadcasts the queue.
+  static ValueStream<List<MediaItem>?> get queueStream => _queueSubject.stream;
+
+  /// The current queue.
+  static List<MediaItem>? get queue => _queueSubject.nvalue;
+
+  /// ----------------------- notification Notify -----------------------///
+  static final _notificationSubject = BehaviorSubject.seeded(false);
+
+  /// A stream that broadcasts the status of the notificationClick event.
+  static ValueStream<bool> get notificationClickEventStream =>
+      _notificationSubject.stream;
+
+  /// The status of the notificationClick event.
+  static bool get notificationClickEvent => _notificationSubject.nvalue ?? false;
+
+  /// ----------------------- customEvent Notify -----------------------///
+  static final _customEventSubject = PublishSubject<dynamic>();
+
+  /// A stream that broadcasts custom events sent from the background.
+  static Stream<dynamic> get customEventStream => _customEventSubject.stream;
+
 
   static void startedNonIsolate() {
     _startNonIsolateCompleter?.complete();
@@ -135,7 +144,7 @@ class AudioServiceController {
   /// other methods in this class will work only while connected.
   ///
   /// Use [AudioServiceWidget] to handle this automatically.
-  static Future<void> connect() => _asyncTaskQueue.schedule(() async {
+  static Future<void> connect({Function(bool)? onConnectCallback}) => _asyncTaskQueue.schedule(() async {
     if (_connected) return;
     final handler = (MethodCall call) async {
       switch (call.method) {
@@ -204,7 +213,11 @@ class AudioServiceController {
       IsolateNameServer.registerPortWithName(
           _customEventReceivePort!.sendPort, CUSTOM_EVENT_PORT_NAME);
     }
-    await _channel.invokeMethod("connect");
+    bool result = (await _channel.invokeMethod<bool>("connect"))!;
+    if (onConnectCallback != null) {
+      onConnectCallback(result);
+    }
+
     final running = (await _channel.invokeMethod<bool>("isRunning"))!;
     if (running != _runningSubject.nvalue) {
       _runningSubject.add(running);

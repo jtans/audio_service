@@ -39,8 +39,8 @@ enum MediaAction {
 enum AudioProcessingState {
   none,
   connecting,
-  ready,
   buffering,
+  ready,
   fastForwarding,
   rewinding,
   skippingToPrevious,
