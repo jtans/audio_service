@@ -48,6 +48,7 @@ class MainScreen extends StatelessWidget {
 }
 
 List<String> mp3List = [
+  "http://antiserver.kuwo.cn/anti.s?useless=/resource/&format=mp3&rid=MUSIC_71115353&response=res&type=convert_url&",
   "https://s3.amazonaws.com/scifri-episodes/scifri20181123-episode.mp3",
   "https://s3.amazonaws.com/scifri-segments/scifri201711241.mp3",
 ];
@@ -84,25 +85,28 @@ class AudioPlayerPageRoute extends StatelessWidget {
 class AudioPlayerWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: StreamBuilder<bool>(
-        stream: AudioServiceController.runningStream,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.active) {
-            // Don't show anything until we've ascertained whether or not the
-            // service is running, since we want to show a different UI in
-            // each case.
-            return SizedBox();
-          }
-          final running = snapshot.data ?? false;
+    // return Center(
+      // child: StreamBuilder<bool>(
+      //   stream: AudioServiceController.runningStream,
+      //   builder: (context, snapshot) {
+      //     print("xiong -- running = ${snapshot.data}");
+      //     if (snapshot.connectionState != ConnectionState.active) {
+      //       // Don't show anything until we've ascertained whether or not the
+      //       // service is running, since we want to show a different UI in
+      //       // each case.
+      //       return SizedBox();
+      //     }
+      //     final running = snapshot.data ?? false;
           return Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              if (!running) ...[
-                // UI to show when we're not running, i.e. a menu.
+//               if (!running) ...[
+//                 // UI to show when we're not running, i.e. a menu.
+//                 audioPlayerButton(),
+// //                  if (kIsWeb || !Platform.isMacOS) textToSpeechButton(),
+//               ] else ...[
+
                 audioPlayerButton(),
-//                  if (kIsWeb || !Platform.isMacOS) textToSpeechButton(),
-              ] else ...[
                 // UI to show when we're running, i.e. player state/controls.
                 // Queue display/controls.
                 StreamBuilder<QueueState>(
@@ -173,12 +177,19 @@ class AudioPlayerWidget extends StatelessWidget {
                 StreamBuilder<PlaybackState>(
                     stream: AudioServiceController.playbackStateStream,
                     builder: (context, snapshot) {
-                      return SeekBar(
-                          duration: Duration(minutes: 2),
-                          position: snapshot.data?.currentPosition ?? Duration.zero,
-                          onChangeEnd: (newPosition) {
-                            AudioServiceController.seekTo(newPosition);
-                          },
+                      Duration duration = snapshot.data?.extras == null ? Duration.zero : Duration(seconds: snapshot.data!.extras![EXTRA_PLAYER_DURATION] as int);
+                      Duration position = snapshot.data?.position == null ? Duration.zero : snapshot.data!.position;
+                      print("xiong -- Background Audio Controller duration = $duration, position = $position");
+                      return Column(
+                        children: [
+                          SeekBar(
+                            duration: duration,
+                            position: position,
+                            onChangeEnd: (newPosition) {
+                              AudioServiceController.seekTo(newPosition);
+                            },
+                          ),
+                        ],
                       );
                     }),
                 // Display the processing state.
@@ -209,11 +220,11 @@ class AudioPlayerWidget extends StatelessWidget {
                     );
                   },
                 ),
-              ],
+              // ],
             ],
-          );
-        },
-      ),
+          // );
+        // },
+      // ),
     );
   }
 
@@ -224,7 +235,7 @@ class AudioPlayerWidget extends StatelessWidget {
         backgroundTask: _audioPlayerTaskEntryPoint,
         androidNotificationChannelName: 'Audio Service Demo',
         // Enable this if you want the Android service to exit the foreground state on pause.
-        //androidStopForegroundOnPause: true,
+        androidStopForegroundOnPause: true,
         androidNotificationColor: 0xFF2196f3,
         androidNotificationIcon: 'mipmap/ic_launcher',
         androidEnableQueue: true,

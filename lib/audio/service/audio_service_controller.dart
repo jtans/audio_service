@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:collection';
 import 'dart:isolate';
 import 'dart:ui';
 import 'dart:ui' as ui;
@@ -158,6 +159,9 @@ class AudioServiceController {
           if (_afterStop) return;
           final List args = call.arguments;
           int actionBits = args[2];
+          Map<String, dynamic> extras = args[9] == null ? null : args[9].cast<String, dynamic>();
+
+          print("xiong -- Background onPlaybackStateChanged extras = $extras, position = ${args[3]}");
           _playbackStateSubject.add(PlaybackState(
             processingState: AudioProcessingState.values[args[0]],
             playing: args[1],
@@ -170,6 +174,7 @@ class AudioServiceController {
             updateTime: DateTime.fromMillisecondsSinceEpoch(args[6]),
             repeatMode: AudioServiceRepeatMode.values[args[7]],
             shuffleMode: AudioServiceShuffleMode.values[args[8]],
+            extras: extras,
           ));
           break;
         case 'onMediaChanged':
@@ -187,6 +192,7 @@ class AudioServiceController {
         case 'onStopped':
           _browseMediaChildrenSubject.add(null);
           _playbackStateSubject.add(AudioServiceBackground.noneState);
+          // _playbackStateSubject.add(AudioServiceBackground.noneState);
           _currentMediaItemSubject.add(null);
           _queueSubject.add(null);
           _notificationSubject.add(false);

@@ -78,7 +78,11 @@ public class AudioService extends MediaBrowserServiceCompat {
     private static int shuffleMode;
     private static boolean notificationCreated;
 
-    public static void init(Activity activity, boolean resumeOnClick, String androidNotificationChannelName, String androidNotificationChannelDescription, String action, Integer notificationColor, String androidNotificationIcon, boolean androidShowNotificationBadge, boolean androidNotificationClickStartsActivity, boolean androidNotificationOngoing, boolean androidStopForegroundOnPause, Size artDownscaleSize, ServiceListener listener) {
+    public static void init(Activity activity, boolean resumeOnClick, String androidNotificationChannelName,
+                            String androidNotificationChannelDescription, String action, Integer notificationColor,
+                            String androidNotificationIcon, boolean androidShowNotificationBadge,
+                            boolean androidNotificationClickStartsActivity, boolean androidNotificationOngoing,
+                            boolean androidStopForegroundOnPause, Size artDownscaleSize, ServiceListener listener) {
         if (running)
             throw new IllegalStateException("AudioService already running");
         running = true;
@@ -177,6 +181,7 @@ public class AudioService extends MediaBrowserServiceCompat {
     private MediaSessionCompat mediaSession;
     private MediaSessionCallback mediaSessionCallback;
     private MediaMetadataCompat preparedMedia;
+    private PlaybackStateCompat.Builder mStateBuilder;
     private List<NotificationCompat.Action> actions = new ArrayList<NotificationCompat.Action>();
     private int[] compactActionIndices;
     private MediaMetadataCompat mediaMetadata;
@@ -223,7 +228,9 @@ public class AudioService extends MediaBrowserServiceCompat {
         }
     }
 
-    void setState(List<NotificationCompat.Action> actions, int actionBits, int[] compactActionIndices, AudioProcessingState processingState, boolean playing, long position, long bufferedPosition, float speed, long updateTime, int repeatMode, int shuffleMode) {
+    void setState(List<NotificationCompat.Action> actions, int actionBits, int[] compactActionIndices,
+                  AudioProcessingState processingState, boolean playing, long position, long bufferedPosition,
+                  float speed, long updateTime, int repeatMode, int shuffleMode, Bundle extras, boolean needUpdateNotification) {
         this.actions = actions;
         this.compactActionIndices = compactActionIndices;
         boolean wasPlaying = AudioService.playing;
@@ -232,11 +239,12 @@ public class AudioService extends MediaBrowserServiceCompat {
         AudioService.repeatMode = repeatMode;
         AudioService.shuffleMode = shuffleMode;
 
-        PlaybackStateCompat.Builder stateBuilder = new PlaybackStateCompat.Builder()
+        mStateBuilder = new PlaybackStateCompat.Builder()
                 .setActions(PlaybackStateCompat.ACTION_PLAY_PAUSE | actionBits)
                 .setState(getPlaybackState(), position, speed, updateTime)
-                .setBufferedPosition(bufferedPosition);
-        mediaSession.setPlaybackState(stateBuilder.build());
+                .setBufferedPosition(bufferedPosition)
+                .setExtras(extras);
+        mediaSession.setPlaybackState(mStateBuilder.build());
 
         if (!running) return;
 
@@ -246,13 +254,17 @@ public class AudioService extends MediaBrowserServiceCompat {
             exitPlayingState();
         }
 
-        updateNotification();
+        if(needUpdateNotification) {
+            updateNotification();
+        }
     }
 
     public int getPlaybackState() {
         switch (processingState) {
         case none: return PlaybackStateCompat.STATE_NONE;
         case connecting: return PlaybackStateCompat.STATE_CONNECTING;
+        case playing:return PlaybackStateCompat.STATE_PLAYING;
+        case pause:return PlaybackStateCompat.STATE_PAUSED;
         case ready: return playing ? PlaybackStateCompat.STATE_PLAYING : PlaybackStateCompat.STATE_PAUSED;
         case buffering: return PlaybackStateCompat.STATE_BUFFERING;
         case fastForwarding: return PlaybackStateCompat.STATE_FAST_FORWARDING;
@@ -453,9 +465,9 @@ public class AudioService extends MediaBrowserServiceCompat {
         mediaSession = new MediaSessionCompat(this, "media-session");
         mediaSession.setMediaButtonReceiver(null); // TODO: Make this configurable
         mediaSession.setFlags(MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS | MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS);
-        PlaybackStateCompat.Builder stateBuilder = new PlaybackStateCompat.Builder()
+        mStateBuilder = new PlaybackStateCompat.Builder()
                 .setActions(PlaybackStateCompat.ACTION_PLAY);
-        mediaSession.setPlaybackState(stateBuilder.build());
+        mediaSession.setPlaybackState(mStateBuilder.build());
         mediaSession.setCallback(mediaSessionCallback = new MediaSessionCallback());
         setSessionToken(mediaSession.getSessionToken());
         mediaSession.setQueue(queue);

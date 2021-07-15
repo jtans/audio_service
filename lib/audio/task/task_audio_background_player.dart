@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:collection';
 import 'package:audio_service/audio/player/audio_player_ijkplayer.dart';
 import 'package:audio_session/audio_session.dart';
 import 'package:flutter_ijkplayer/flutter_ijkplayer.dart';
@@ -10,6 +11,7 @@ import 'package:audio_service/audio/service/audio_service_background.dart';
 import 'package:audio_service/audio/player/audio_player_interface.dart';
 
 const CUSTOM_CMD_ADD_MP3_RES = "CUSTOM_CMD_ADD_MP3";
+const EXTRA_PLAYER_DURATION = 'extra_player_duration';
 
 /// This task defines logic for playing a list of podcast episodes.
 ///
@@ -17,25 +19,18 @@ const CUSTOM_CMD_ADD_MP3_RES = "CUSTOM_CMD_ADD_MP3";
 /// 根据音频后台服务的播放控制回调，使用播放器实现具体的播放功能
 class AudioPlayerBackgroundTask extends BackgroundAudioTask {
 
-//  final _mediaLibrary = MediaLibrary();
-
   IjkAudioPlayer _player = IjkAudioPlayer(IjkMediaController());
 
-  AudioProcessingState? _skipState;
   AudioProcessingState? _currentState = AudioProcessingState.none;
   Seeker? _seeker;
-  late StreamSubscription<PlaybackEvent> _eventSubscription;
+  Timer? _positionTimer;
   late StreamSubscription<VideoInfo>? _audioInfoSubscription;
   late StreamSubscription<IjkStatus>? _audioStatusSubscription;
-
-//  List<MediaItem> get queue => _mediaLibrary.items;
-
-//  int? get index => _player.currentIndex;
-//  int get index => 0;
 
   int index = 0;
   late List<MediaItem>? queue;
   late MediaItem _mMediaItem;
+
 
 
   @override
@@ -45,48 +40,34 @@ class AudioPlayerBackgroundTask extends BackgroundAudioTask {
     // switch between two types of audio as this example does.
     final session = await AudioSession.instance;
     await session.configure(AudioSessionConfiguration.speech());
-    // Broadcast audio.media item changes.
-//    _player.currentIndexStream.listen((index) {
-//      if (index != null) AudioServiceBackground.setMediaItem(queue[index]);
-//    });
-    // Propagate all events from the audio player to AudioService clients.
-//    _eventSubscription = _player.playbackEventStream.listen((event) {
-//      _broadcastState();
-//    });
-    // Special processing for state transitions.
-//    _player.processingStateStream.listen((state) {
-//      switch (state) {
-//        case ProcessingState.completed:
-//        // In this example, the service stops when reaching the end.
-//          onStop();
-//          break;
-//        case ProcessingState.ready:
-//        // If we just came from skipping between tracks, clear the skip
-//        // state now that we're ready to play.
-//          _skipState = null;
-//          break;
-//        default:
-//          break;
-//      }
-//    });
+
     //音频播放信息
     _audioInfoSubscription = _player.videoInfoStream?.listen((event) {
-      _broadcastPlayerState(info: event);
+      _player.getDuration().then((value) {
+        _broadcastPlayerState(info: event, extra: {EXTRA_PLAYER_DURATION : value.inSeconds});
+      });
     });
     //音频播放状态
     _audioStatusSubscription = _player.statusStream?.listen((event) {
       switch (event) {
         case IjkStatus.preparing:
-          _currentState = AudioProcessingState.connecting;
+          _currentState = AudioProcessingState.buffering;
           break;
         case IjkStatus.prepared:
           _currentState = AudioProcessingState.ready;
+          // 每500ms更新一次播放状态
+          startQueryPosition(Duration(milliseconds: 800));
+
+          //TODO xiong -- test: 测试播放总长度是否会被 extras = null 覆盖
+          // _player.getDuration().then((value) =>
+          //     _broadcastPlayerState(extra: {EXTRA_PLAYER_DURATION : value.inSeconds})
+          // );
           break;
         case IjkStatus.playing:
-          _currentState = AudioProcessingState.ready;
+          _currentState = AudioProcessingState.playing;
           break;
         case IjkStatus.pause:
-          _currentState = AudioProcessingState.ready;
+          _currentState = AudioProcessingState.pause;
           break;
         case IjkStatus.complete:
           _currentState = AudioProcessingState.completed;
@@ -104,63 +85,11 @@ class AudioPlayerBackgroundTask extends BackgroundAudioTask {
     });
   }
 
-  /// Maps just_audio's processing state into into audio_service's playing
-  /// state. If we are in the middle of a skip, we use [_skipState] instead.
-//  AudioProcessingState _getProcessingState() {
-//    if (_skipState != null) return _skipState!;
-//    switch (_player.processingState) {
-//      case ProcessingState.idle:
-//        return AudioProcessingState.stopped;
-//      case ProcessingState.loading:
-//        return AudioProcessingState.connecting;
-//      case ProcessingState.buffering:
-//        return AudioProcessingState.buffering;
-//      case ProcessingState.ready:
-//        return AudioProcessingState.ready;
-//      case ProcessingState.completed:
-//        return AudioProcessingState.completed;
-//      default:
-//        throw Exception("Invalid state: ${_player.processingState}");
-//    }
-//  }
-
-  @override
-  Future<void> onSkipToQueueItem(String mediaId) async {
-    // Then default implementations of onSkipToNext and onSkipToPrevious will
-    // delegate to this method.
-    final newIndex = queue!.indexWhere((item) => item.id == mediaId);
-    if (newIndex == -1) return;
-    // During a skip, the player may enter the buffering state. We could just
-    // propagate that state directly to AudioService clients but AudioService
-    // has some more specific states we could use for skipping to next and
-    // previous. This variable holds the preferred state to send instead of
-    // buffering during a skip, and it is cleared as soon as the player exits
-    // buffering (see the listener in onStart).
-
-//    _skipState = newIndex > index
-//        ? AudioProcessingState.skippingToNext
-//        : AudioProcessingState.skippingToPrevious;
-//    // This jumps to the beginning of the queue item at newIndex.
-//    // TODO xiong -- 补充：Player.onSkipToQueueItem
-//    _player.seek(Duration.zero, index: newIndex);
-
-    // Demonstrate custom events.
-    AudioServiceBackground.sendCustomEvent('skip to $newIndex');
-  }
-
   @override
   Future<void> onPlay() => _player.play();
 
   @override
   Future<void> onPause() => _player.pause();
-
-//  @override
-//  Future<void> onPrepare() async {
-//    if (queue.isEmpty) {
-//      return Future(() => null);
-//    }
-//    return
-//  }
 
   @override
   Future<void> onSeekTo(Duration position) => _player.seekTo(position);
@@ -181,12 +110,12 @@ class AudioPlayerBackgroundTask extends BackgroundAudioTask {
   Future<dynamic> onCustomAction(String name, dynamic arguments) async {
     switch(name) {
       case CUSTOM_CMD_ADD_MP3_RES:
-        print("xiong -- onCustomAction: CUSTOM_CMD_ADD_MP3_RES args = $arguments");
-        String mp3_1 = arguments[0];//.cast<String>();
-        String mp3_2 = arguments[1];//.cast<String>();
+        String mp3_1 = arguments[0];
+        String mp3_2 = arguments[1];
         print("xiong -- onCustomAction: CUSTOM_CMD_ADD_MP3_RES args = $arguments, param1 = $mp3_1, param2 = $mp3_2");
-//        List<String> ids = arguments as List<String>;
-        _player.setNetworkDataSource(mp3_1);
+       // List<String> ids = arguments as List<String>;
+        await _player.setNetworkDataSource(mp3_1);
+
         onPlay();
 
 //        queue = arguments as List<MediaItem>;
@@ -225,16 +154,25 @@ class AudioPlayerBackgroundTask extends BackgroundAudioTask {
   @override
   Future<void> onStop() async {
     await _player.stop();
-//    _eventSubscription.cancel();
     _audioInfoSubscription?.cancel();
     _audioStatusSubscription?.cancel();
-    // It is important to wait for this state to be broadcast before we shut
-    // down the audio.task. If we don't, the background audio.task will be destroyed before
-    // the message gets sent to the UI.
-//    await _broadcastState();
+    _positionTimer?.cancel();
     await _broadcastPlayerState();
     // Shut down this audio.task
     await super.onStop();
+  }
+
+  void startQueryPosition(Duration step) {
+    _positionTimer = Timer.periodic(step, (timer) {
+      print("xiong -- timer call _broadcastPlayerState");
+      _player.mediaController.refreshVideoInfo();
+      // _player.getDuration().then((value) {
+        // print("xiong -- timer call _broadcastPlayerState duration = $value");
+        // _broadcastPlayerState(info: _player.mediaController.videoInfo,
+        //     extra: {EXTRA_PLAYER_DURATION : value.inSeconds},
+        //     needUpdateNotification: false);
+      // });
+    });
   }
 
   /// Jumps away from the current position by [offset].
@@ -260,52 +198,30 @@ class AudioPlayerBackgroundTask extends BackgroundAudioTask {
     }
   }
 
-//  /// Broadcasts the current state to all clients.
-//  Future<void> _broadcastState() async {
-//    await AudioServiceBackground.setState(
-//      controls: [
-//        MediaControl.skipToPrevious,
-//        if (_player.isPlaying()) MediaControl.pause else
-//          MediaControl.play,
-//        MediaControl.stop,
-//        MediaControl.skipToNext,
-//      ],
-//      systemActions: [
-//        MediaAction.seekTo,
-//        MediaAction.seekForward,
-//        MediaAction.seekBackward,
-//      ],
-//      androidCompactActions: [0, 1, 3],
-//      processingState: _getProcessingState(),
-//      playing: _player.isPlaying(),
-//      position: await _player.getCurrentPosition(),
-////      bufferedPosition: _player.bufferedPosition,
-//      speed: _player.getSpeed(),
-//    );
-//  }
-
   /// Broadcasts the current state to all clients.
-  Future<void> _broadcastPlayerState({VideoInfo? info}) async {
-    await AudioServiceBackground.updateNotificationState(
+  /// [extra] -- 需额外传输的数据（TODO xiong -- fix: extra为空的话接收端会接收失败）
+  Future<void> _broadcastPlayerState({VideoInfo? info, Map<String, dynamic>? extra, bool? needUpdateNotification}) async {
+    await AudioServiceBackground.setPlaybackState(
       controls: [
         MediaControl.skipToPrevious,
-        if (_player.isPlaying()) MediaControl.pause else
-          MediaControl.play,
+        if (_player.isPlaying()) MediaControl.pause else MediaControl.play,
         MediaControl.stop,
         MediaControl.skipToNext,
       ],
-      systemActions: [
-        MediaAction.seekTo,
-        MediaAction.seekForward,
-        MediaAction.seekBackward,
-      ],
-      androidCompactActions: [0, 1, 3],
+      // systemActions: [
+      //   MediaAction.seekTo,
+      //   MediaAction.seekForward,
+      //   MediaAction.seekBackward,
+      // ],
+      androidCompactActions: [0, 1, 2],
       processingState: _currentState,
       playing: info?.isPlaying ?? _player.isPlaying(),
       position: info == null ? await _player.getCurrentPosition()
-          : Duration(milliseconds: (info.currentPosition ?? 0).toInt()),
+          : Duration(seconds: (info.currentPosition ?? 0).toInt()),
 //      bufferedPosition: _player.bufferedPosition,
       speed: _player.getSpeed(),
+      extras: extra,
+      needUpdateNotification: needUpdateNotification ?? true,
     );
   }
 

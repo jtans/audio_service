@@ -1,7 +1,9 @@
 
 import 'dart:io';
 
-import 'package:audio_service/audio/player/audio_player_interface.dart';
+import 'package:flutter/cupertino.dart';
+
+import 'audio_player_interface.dart';
 import 'package:flutter_ijkplayer/flutter_ijkplayer.dart';
 
 /// IJK媒体播放器
@@ -20,8 +22,8 @@ class IjkAudioPlayer implements IAudioPlayer {
 
 
   @override
-  void setNetworkDataSource(String netUrl) {
-    mediaController.setNetworkDataSource(netUrl);
+  Future<void> setNetworkDataSource(String netUrl) async {
+    await mediaController.setNetworkDataSource(netUrl);
   }
 
   @override
@@ -36,7 +38,7 @@ class IjkAudioPlayer implements IAudioPlayer {
 
   @override
   Future<void> seekTo(Duration position) async {
-    mediaController.seekTo(position.inMilliseconds.toDouble());
+    mediaController.seekTo(position.inSeconds.toDouble());
   }
 
   @override
@@ -87,12 +89,12 @@ class IjkAudioPlayer implements IAudioPlayer {
 
   @override
   Future<Duration> getCurrentPosition() async {
-    return await mediaController.getVideoInfo().then((value) => Duration(milliseconds: (value.currentPosition ?? 0).toInt()));
+    return await mediaController.getVideoInfo().then((value) => Duration(seconds: (value.currentPosition ?? 0).toInt()));
   }
 
   @override
   Future<Duration> getDuration() async {
-    return await mediaController.getVideoInfo().then((value) => Duration(milliseconds: value.duration.toInt()));
+    return await mediaController.getVideoInfo().then((value) => Duration(seconds: value.duration.toInt()));
   }
 
 }

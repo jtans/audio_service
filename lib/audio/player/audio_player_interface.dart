@@ -4,7 +4,7 @@
 abstract class IAudioPlayer {
 
   ///设置网络数据源
-  void setNetworkDataSource(String url);
+  Future<void> setNetworkDataSource(String url);
 
   ///设置资源数据源
   void setAssetDataSource(String assetPath);

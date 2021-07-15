@@ -1,5 +1,7 @@
 
 
+import 'dart:collection';
+
 /// The different buttons on a headset.
 enum MediaButton {
   media,
@@ -41,6 +43,8 @@ enum AudioProcessingState {
   connecting,
   buffering,
   ready,
+  playing,
+  pause,
   fastForwarding,
   rewinding,
   skippingToPrevious,
@@ -126,6 +130,8 @@ class PlaybackState {
   /// The current shuffle mode.
   final AudioServiceShuffleMode shuffleMode;
 
+  final Map<String, dynamic>? extras;
+
   const PlaybackState({
     required this.processingState,
     required this.playing,
@@ -136,6 +142,7 @@ class PlaybackState {
     required this.updateTime,
     required this.repeatMode,
     required this.shuffleMode,
+    this.extras,
   });
 
   /// The current playback position.

@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:collection';
 import 'dart:ui';
 import 'dart:isolate';
 import 'dart:io' show Platform;
+import 'package:audio_service/audio/task/task_audio_background_player.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
@@ -36,6 +38,7 @@ class AudioServiceBackground {
     updateTime: DateTime.fromMillisecondsSinceEpoch(0),
     repeatMode: AudioServiceRepeatMode.none,
     shuffleMode: AudioServiceShuffleMode.none,
+    // extras: null,
   );
   static late MethodChannel _backgroundChannel;
   static PlaybackState _state = noneState;
@@ -339,89 +342,44 @@ class AudioServiceBackground {
   /// this calculation is provided by [PlaybackState.currentPosition].
   ///
   /// The playback [speed] is given as a double where 1.0 means normal speed.
-  static Future<void> updateNotificationState({
-    List<MediaControl>? controls,
-    List<MediaAction>? systemActions,
-    AudioProcessingState? processingState,
-    bool? playing,
-    Duration? position,
-    Duration? bufferedPosition,
-    double? speed,
-    DateTime? updateTime,
-    List<int>? androidCompactActions,
-    AudioServiceRepeatMode? repeatMode,
-    AudioServiceShuffleMode? shuffleMode,
-  }) async {
-    controls ??= _controls;
-    systemActions ??= _systemActions;
-    processingState ??= _state.processingState;
-    playing ??= _state.playing;
-    position ??= _state.currentPosition;
-    updateTime ??= DateTime.now();
-    bufferedPosition ??= _state.bufferedPosition;
-    speed ??= _state.speed;
-    repeatMode ??= _state.repeatMode;
-    shuffleMode ??= _state.shuffleMode;
-    _controls = controls;
-    _systemActions = systemActions;
-    _state = PlaybackState(
-      processingState: processingState,
-      playing: playing,
-      actions: controls.map((control) => control.action).toSet(),
-      position: position,
-      bufferedPosition: bufferedPosition,
-      speed: speed,
-      updateTime: updateTime,
-      repeatMode: repeatMode,
-      shuffleMode: shuffleMode,
-    );
-    List<Map> rawControls = controls
-        .map((control) => {
-      'androidIcon': control.androidIcon,
-      'label': control.label,
-      'action': control.action.index,
-    })
-        .toList();
-    final rawSystemActions =
-    systemActions.map((action) => action.index).toList();
-    await _backgroundChannel.invokeMethod('setState', [
-      rawControls,
-      rawSystemActions,
-      processingState.index,
-      playing,
-      position.inMilliseconds,
-      bufferedPosition.inMilliseconds,
-      speed,
-      updateTime.millisecondsSinceEpoch,
-      androidCompactActions,
-      repeatMode.index,
-      shuffleMode.index,
-    ]);
-  }
-
+  ///
+  /// [controls] -- 通知栏支持的相关控制按钮
+  /// [systemActions] -- 通知栏支持的非按钮类Actions
+  /// [processingState] -- 音频播放状态
+  /// [playing] -- 当前播放状态
+  /// [position] -- 当前播放位置
+  /// [bufferedPosition] -- 当前播放缓冲位置
+  /// [speed] -- 当前播放速度
+  /// [repeatMode] -- 播放模式
+  /// [shuffleMode] -- 播放模式
+  /// [extras] -- 额外的数据（目前仅支持传输基本数据类型）
+  /// [needUpdateNotification] -- 是否同步更新通知栏状态
   static Future<void> setPlaybackState({
     List<MediaControl>? controls,
     List<MediaAction>? systemActions,
+    List<int>? androidCompactActions,
     AudioProcessingState? processingState,
     bool? playing,
     Duration? position,
     Duration? bufferedPosition,
     double? speed,
     DateTime? updateTime,
-    List<int>? androidCompactActions,
     AudioServiceRepeatMode? repeatMode,
     AudioServiceShuffleMode? shuffleMode,
+    Map<String, dynamic>? extras,
+    required bool needUpdateNotification
   }) async {
     controls ??= _controls;
     systemActions ??= _systemActions;
     processingState ??= _state.processingState;
     playing ??= _state.playing;
-    position ??= _state.currentPosition;
+    position ??= _state.position;
     updateTime ??= DateTime.now();
     bufferedPosition ??= _state.bufferedPosition;
     speed ??= _state.speed;
     repeatMode ??= _state.repeatMode;
     shuffleMode ??= _state.shuffleMode;
+
     _controls = controls;
     _systemActions = systemActions;
     _state = PlaybackState(
@@ -434,28 +392,29 @@ class AudioServiceBackground {
       updateTime: updateTime,
       repeatMode: repeatMode,
       shuffleMode: shuffleMode,
+      extras: extras,
     );
-    List<Map> rawControls = controls
-        .map((control) => {
+    List<Map> rawControls = controls.map((control) => {
       'androidIcon': control.androidIcon,
       'label': control.label,
       'action': control.action.index,
-    })
-        .toList();
-    final rawSystemActions =
-    systemActions.map((action) => action.index).toList();
+    }).toList();
+    final rawSystemActions = systemActions.map((action) => action.index).toList();
+
     await _backgroundChannel.invokeMethod('setState', [
       rawControls,
       rawSystemActions,
+      androidCompactActions,
       processingState.index,
       playing,
       position.inMilliseconds,
       bufferedPosition.inMilliseconds,
       speed,
       updateTime.millisecondsSinceEpoch,
-      androidCompactActions,
       repeatMode.index,
       shuffleMode.index,
+      extras,
+      needUpdateNotification,
     ]);
   }
 
