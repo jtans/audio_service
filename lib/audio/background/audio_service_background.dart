@@ -1,19 +1,18 @@
 import 'dart:async';
-import 'dart:collection';
-import 'dart:ui';
-import 'dart:isolate';
 import 'dart:io' show Platform;
-import 'package:audio_service/audio/task/task_audio_background_player.dart';
-import 'package:flutter/services.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
-import 'package:flutter_isolate/flutter_isolate.dart';
-import 'package:flutter_cache_manager/flutter_cache_manager.dart';
-import 'package:audio_session/audio_session.dart';
+import 'dart:isolate';
+import 'dart:ui';
 
-import 'audio_service_controller.dart';
 import 'package:audio_service/audio/media/audio_media_resource.dart';
-import 'package:audio_service/audio/task/task_audio_background_base.dart';
+import 'package:audio_session/audio_session.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
+import 'package:flutter_isolate/flutter_isolate.dart';
+
+import '../controller/audio_service_controller.dart';
+import 'task_audio_background_base.dart';
 
 /// Background API to be used by your background audio audio.task.
 ///
@@ -27,7 +26,14 @@ import 'package:audio_service/audio/task/task_audio_background_base.dart';
 /// 音频后台服务
 /// 主要响应播放界面的各播放功能按钮（如播放、上一节、下一节等），服务端接收到相应回调，进行播放相关功能处理
 /// 具体的播放相关功能交由 BackgroundAudioTask 进行处理
+const String MEDIA_ROOT_ID = "root";
 class AudioServiceBackground {
+
+  AudioServiceBackground._privateConstructor();
+  static final AudioServiceBackground _instance = AudioServiceBackground._privateConstructor();
+  static AudioServiceBackground get instance { return _instance;}
+
+
   static final PlaybackState noneState = PlaybackState(
     processingState: AudioProcessingState.none,
     playing: false,
@@ -42,10 +48,10 @@ class AudioServiceBackground {
   );
   static late MethodChannel _backgroundChannel;
   static PlaybackState _state = noneState;
-  static List<MediaControl> _controls = [];
-  static List<MediaAction> _systemActions = [];
-  static MediaItem? _mediaItem;
-  static List<MediaItem>? _queue;
+  List<MediaControl> _controls = [];
+  List<MediaAction> _systemActions = [];
+  // T? _mediaItem;
+  // List<T>? _queue;
   static BaseCacheManager? _cacheManager;
   static late BackgroundAudioTask _task;
   static bool _running = false;
@@ -67,12 +73,12 @@ class AudioServiceBackground {
   /// The current audio.media item.
   ///
   /// This is the value most recently set via [setMediaItem].
-  static MediaItem? get mediaItem => _mediaItem;
+  // T? get mediaItem => _mediaItem;
 
   /// The current queue.
   ///
   /// This is the value most recently set via [setQueue].
-  static List<MediaItem>? get queue => _queue;
+  // List<T>? get queue => _queue;
 
   /// Runs the background audio audio.task within the background isolate.
   ///
@@ -82,11 +88,12 @@ class AudioServiceBackground {
   /// initialization and distruction of the background audio audio.task, as well as
   /// any requests by the client to play, pause and otherwise control audio
   /// playback.
-  static Future<void> run(BackgroundAudioTask taskBuilder()) async {
+  Future<void> run(BackgroundAudioTask taskBuilder()) async {
     _running = true;
     _taskCompleter = Completer();
     _inProgressCompleter = Completer();
-    _backgroundChannel = const MethodChannel('ryanheise.com/audioServiceBackground');
+    _backgroundChannel =
+        const MethodChannel('ryanheise.com/audioServiceBackground');
     WidgetsFlutterBinding.ensureInitialized();
     _task = taskBuilder();
     _cacheManager = _task.cacheManager;
@@ -126,9 +133,12 @@ class AudioServiceBackground {
       _backgroundChannel.setMethodCallHandler(handler);
     }
     Map startParams = (await (_backgroundChannel.invokeMethod<Map>('ready')))!;
-    Duration fastForwardInterval = Duration(milliseconds: startParams['fastForwardInterval']);
-    Duration rewindInterval = Duration(milliseconds: startParams['rewindInterval']);
-    Map<String, dynamic>? params = startParams['params']?.cast<String, dynamic>();
+    Duration fastForwardInterval =
+        Duration(milliseconds: startParams['fastForwardInterval']);
+    Duration rewindInterval =
+        Duration(milliseconds: startParams['rewindInterval']);
+    Map<String, dynamic>? params =
+        startParams['params']?.cast<String, dynamic>();
     _task.setParams(
       fastForwardInterval: fastForwardInterval,
       rewindInterval: rewindInterval,
@@ -146,14 +156,13 @@ class AudioServiceBackground {
   }
 
   /// Handle methods other than onStop.
-  static Future<dynamic> _handleNonStopMethod(MethodCall call) async {
+  Future<dynamic> _handleNonStopMethod(MethodCall call) async {
     switch (call.method) {
       case 'onLoadChildren':
         final List args = call.arguments;
         String parentMediaId = args[0];
-        List<MediaItem> mediaItems = await _task.onLoadChildren(parentMediaId);
-        List<Map> rawMediaItems =
-        mediaItems.map((item) => item.toJson()).toList();
+        List<dynamic> list = await _task.onLoadChildren(parentMediaId);
+        List rawMediaItems = _task.convertMediaItemListToRawList(list);
         return rawMediaItems as dynamic;
       case 'onClick':
         final List args = call.arguments;
@@ -174,27 +183,21 @@ class AudioServiceBackground {
         String mediaId = args[0];
         return await _task.onPlayFromMediaId(mediaId);
       case 'onPlayMediaItem':
-        return await _task
-            .onPlayMediaItem(MediaItem.fromJson(call.arguments[0]));
+        return await _task.onPlayMediaItem(_task.convertRawMapToMediaItem(call.arguments[0]));
       case 'onAddQueueItem':
-        return await _task
-            .onAddQueueItem(MediaItem.fromJson(call.arguments[0]));
+        return await _task.onAddQueueItem(_task.convertRawMapToMediaItem(call.arguments[0]));
       case 'onAddQueueItemAt':
         final List args = call.arguments;
-        MediaItem mediaItem = MediaItem.fromJson(args[0]);
         int index = args[1];
-        return await _task.onAddQueueItemAt(mediaItem, index);
+        return await _task.onAddQueueItemAt(_task.convertRawMapToMediaItem(args[0]), index);
       case 'onUpdateQueue':
         final List args = call.arguments;
         final List queue = args[0];
-        return await _task.onUpdateQueue(
-            queue.map((raw) => MediaItem.fromJson(raw)).toList());
+        return await _task.onUpdateQueue(_task.convertRawListToMediaItemList(queue));
       case 'onUpdateMediaItem':
-        return await _task
-            .onUpdateMediaItem(MediaItem.fromJson(call.arguments[0]));
+        return await _task.onUpdateMediaItem(_task.convertRawMapToMediaItem(call.arguments[0]));
       case 'onRemoveQueueItem':
-        return await _task
-            .onRemoveQueueItem(MediaItem.fromJson(call.arguments[0]));
+        return await _task.onRemoveQueueItem(_task.convertRawMapToMediaItem(call.arguments[0]));
       case 'onSkipToNext':
         return await _task.onSkipToNext();
       case 'onSkipToPrevious':
@@ -248,14 +251,14 @@ class AudioServiceBackground {
   }
 
   /// Wait for methods (other than onStop) in progress.
-  static Future<void> _waitForMethodsInProgress() async {
+  Future<void> _waitForMethodsInProgress() async {
     if (_inProgressMethodCount > 0) {
       await _inProgressCompleter.future;
     }
   }
 
   /// Shuts down the background audio audio.task within the background isolate.
-  static Future<void> shutdown() async {
+  Future<void> shutdown() async {
     if (!_running) return;
     // Set this to false immediately so that if duplicate shutdown requests come
     // through, they are ignored.
@@ -271,7 +274,7 @@ class AudioServiceBackground {
     _state = noneState;
     _controls = [];
     _systemActions = [];
-    _queue = [];
+    // _queue = [];
     // Before shutting down the engine, ensure that any methods in progress are
     // interrupted and return results to the client.
     await _waitForMethodsInProgress();
@@ -354,21 +357,20 @@ class AudioServiceBackground {
   /// [shuffleMode] -- 播放模式
   /// [extras] -- 额外的数据（目前仅支持传输基本数据类型）
   /// [needUpdateNotification] -- 是否同步更新通知栏状态
-  static Future<void> setPlaybackState({
-    List<MediaControl>? controls,
-    List<MediaAction>? systemActions,
-    List<int>? androidCompactActions,
-    AudioProcessingState? processingState,
-    bool? playing,
-    Duration? position,
-    Duration? bufferedPosition,
-    double? speed,
-    DateTime? updateTime,
-    AudioServiceRepeatMode? repeatMode,
-    AudioServiceShuffleMode? shuffleMode,
-    Map<String, dynamic>? extras,
-    required bool needUpdateNotification
-  }) async {
+  Future<void> setPlaybackState(
+      {List<MediaControl>? controls,
+      List<MediaAction>? systemActions,
+      List<int>? androidCompactActions,
+      AudioProcessingState? processingState,
+      bool? playing,
+      Duration? position,
+      Duration? bufferedPosition,
+      double? speed,
+      DateTime? updateTime,
+      AudioServiceRepeatMode? repeatMode,
+      AudioServiceShuffleMode? shuffleMode,
+      Map<String, dynamic>? extras,
+      required bool needUpdateNotification}) async {
     controls ??= _controls;
     systemActions ??= _systemActions;
     processingState ??= _state.processingState;
@@ -394,12 +396,15 @@ class AudioServiceBackground {
       shuffleMode: shuffleMode,
       extras: extras,
     );
-    List<Map> rawControls = controls.map((control) => {
-      'androidIcon': control.androidIcon,
-      'label': control.label,
-      'action': control.action.index,
-    }).toList();
-    final rawSystemActions = systemActions.map((action) => action.index).toList();
+    List<Map> rawControls = controls
+        .map((control) => {
+              'androidIcon': control.androidIcon,
+              'label': control.label,
+              'action': control.action.index,
+            })
+        .toList();
+    final rawSystemActions =
+        systemActions.map((action) => action.index).toList();
 
     await _backgroundChannel.invokeMethod('setState', [
       rawControls,
@@ -419,81 +424,81 @@ class AudioServiceBackground {
   }
 
   /// Sets the current queue and notifies all clients.
-  static Future<void> setQueue(List<MediaItem> queue,
+  Future<void> setQueue<T>(List<T> queue,
       {bool preloadArtwork = false}) async {
-    _queue = queue;
-    if (preloadArtwork) {
-      _loadAllArtwork(queue);
-    }
+    // _queue = queue;
+    // if (preloadArtwork) {
+    //   _loadAllArtwork(queue);
+    // }
     await _backgroundChannel.invokeMethod(
-        'setQueue', queue.map((item) => item.toJson()).toList());
+        'setQueue', queue.map((item) => (item as dynamic).toJson()).toList());
   }
 
   /// Sets the currently playing audio.media item and notifies all clients.
-  static Future<void> setMediaItem(MediaItem mediaItem) async {
-    _mediaItem = mediaItem;
-    final artUri = mediaItem.artUri;
-    if (artUri != null) {
-      // We potentially need to fetch the art.
-      String? filePath;
-      if (artUri.scheme == 'file') {
-        filePath = artUri.toFilePath();
-      } else {
-        final FileInfo? fileInfo = await _cacheManager!
-            .getFileFromMemory(mediaItem.artUri!.toString());
-        filePath = fileInfo?.file.path;
-        if (filePath == null) {
-          // We haven't fetched the art yet, so show the metadata now, and again
-          // after we load the art.
-          await _backgroundChannel.invokeMethod(
-              'setMediaItem', mediaItem.toJson());
-          // Load the art
-          filePath = await _loadArtwork(mediaItem);
-          // If we failed to download the art, abort.
-          if (filePath == null) return;
-          // If we've already set a new audio.media item, cancel this request.
-          if (mediaItem != _mediaItem) return;
-        }
-      }
-      final extras = Map.of(mediaItem.extras ?? <String, dynamic>{});
-      extras['artCacheFile'] = filePath;
-      final platformMediaItem = mediaItem.copyWith(extras: extras);
-      // Show the audio.media item after the art is loaded.
-      await _backgroundChannel.invokeMethod(
-          'setMediaItem', platformMediaItem.toJson());
-    } else {
-      await _backgroundChannel.invokeMethod('setMediaItem', mediaItem.toJson());
-    }
+  Future<void> setMediaItem<T>(T mediaItem) async {
+    // _mediaItem = mediaItem;
+    // final artUri = mediaItem.artUri;
+    // if (artUri != null) {
+    //   // We potentially need to fetch the art.
+    //   String? filePath;
+    //   if (artUri.scheme == 'file') {
+    //     filePath = artUri.toFilePath();
+    //   } else {
+    //     final FileInfo? fileInfo = await _cacheManager!
+    //         .getFileFromMemory(mediaItem.artUri!.toString());
+    //     filePath = fileInfo?.file.path;
+    //     if (filePath == null) {
+    //       // We haven't fetched the art yet, so show the metadata now, and again
+    //       // after we load the art.
+    //       await _backgroundChannel.invokeMethod(
+    //           'setMediaItem', mediaItem.toJson());
+    //       // Load the art
+    //       filePath = await _loadArtwork(mediaItem);
+    //       // If we failed to download the art, abort.
+    //       if (filePath == null) return;
+    //       // If we've already set a new audio.media item, cancel this request.
+    //       if (mediaItem != _mediaItem) return;
+    //     }
+    //   }
+    //   final extras = Map.of(mediaItem.extras ?? <String, dynamic>{});
+    //   extras['artCacheFile'] = filePath;
+    //   final platformMediaItem = mediaItem.copyWith(extras: extras);
+    //   // Show the audio.media item after the art is loaded.
+    //   await _backgroundChannel.invokeMethod(
+    //       'setMediaItem', platformMediaItem.toJson());
+    // } else {
+      await _backgroundChannel.invokeMethod('setMediaItem', (mediaItem as dynamic).toJson());
+    // }
   }
 
-  static Future<void> _loadAllArtwork(List<MediaItem> queue) async {
-    for (var mediaItem in queue) {
-      await _loadArtwork(mediaItem);
-    }
-  }
-
-  static Future<String?> _loadArtwork(MediaItem mediaItem) async {
-    try {
-      final artUri = mediaItem.artUri;
-      if (artUri != null) {
-        if (artUri.scheme == 'file') {
-          return artUri.toFilePath();
-        } else {
-          final file =
-          await _cacheManager!.getSingleFile(mediaItem.artUri!.toString());
-          return file.path;
-        }
-      }
-    } catch (e) {}
-    return null;
-  }
+  // Future<void> _loadAllArtwork(List<T> queue) async {
+  //   for (var mediaItem in queue) {
+  //     await _loadArtwork(mediaItem);
+  //   }
+  // }
+  //
+  // Future<String?> _loadArtwork(MediaItem mediaItem) async {
+  //   try {
+  //     final artUri = mediaItem.artUri;
+  //     if (artUri != null) {
+  //       if (artUri.scheme == 'file') {
+  //         return artUri.toFilePath();
+  //       } else {
+  //         final file =
+  //             await _cacheManager!.getSingleFile(mediaItem.artUri!.toString());
+  //         return file.path;
+  //       }
+  //     }
+  //   } catch (e) {}
+  //   return null;
+  // }
 
   /// Notifies clients that the child audio.media items of [parentMediaId] have
   /// changed.
   ///
   /// If [parentMediaId] is unspecified, the root parent will be used.
   static Future<void> notifyChildrenChanged(
-      [String parentMediaId = AudioServiceController.MEDIA_ROOT_ID]) async {
+      [String parentMediaId = MEDIA_ROOT_ID]) async {
     await _backgroundChannel.invokeMethod(
         'notifyChildrenChanged', parentMediaId);
   }
@@ -521,7 +526,8 @@ class AudioServiceBackground {
     if (!AudioServiceController.usesIsolate) {
       AudioServiceController.addCustomEvent(event);
     } else {
-      SendPort? sendPort = IsolateNameServer.lookupPortByName(CUSTOM_EVENT_PORT_NAME);
+      SendPort? sendPort =
+          IsolateNameServer.lookupPortByName(CUSTOM_EVENT_PORT_NAME);
       sendPort?.send(event);
     }
   }

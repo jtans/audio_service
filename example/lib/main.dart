@@ -4,13 +4,12 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:rxdart/rxdart.dart';
-import 'package:just_audio/just_audio.dart';
 
 import 'package:audio_service/audio/media/audio_media_resource.dart';
 import 'package:audio_service/audio/ui/audio_service_local_widget.dart';
-import 'package:audio_service/audio/service/audio_service_controller.dart';
-import 'package:audio_service/audio/service/audio_service_background.dart';
-import 'package:audio_service/audio/task/task_audio_background_player.dart';
+import 'package:audio_service/audio/background/task_audio_background_player.dart';
+import 'package:audio_service/audio/background/audio_service_background.dart';
+import 'package:audio_service/audio/controller/audio_service_controller_wrapper.dart';
 
 void main() => runApp(new MyApp());
 
@@ -73,7 +72,7 @@ class AudioPlayerPageRoute extends StatelessWidget {
 //          , onConnectResult: (success) {
 //          print("xiong --- MusicService connect result = $success");
 //          if (success) {
-//            AudioServiceController.customAction(CUSTOM_CMD_ADD_MP3_RES, mp3List);//MediaLibrary().items
+//            AudioServiceControllerWrapper().customAction(CUSTOM_CMD_ADD_MP3_RES, mp3List);//MediaLibrary().items
 //          }
 //        },
   ),
@@ -87,7 +86,7 @@ class AudioPlayerWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     // return Center(
       // child: StreamBuilder<bool>(
-      //   stream: AudioServiceController.runningStream,
+      //   stream: AudioServiceControllerWrapper().runningStream,
       //   builder: (context, snapshot) {
       //     print("xiong -- running = ${snapshot.data}");
       //     if (snapshot.connectionState != ConnectionState.active) {
@@ -127,14 +126,14 @@ class AudioPlayerWidget extends StatelessWidget {
                                 iconSize: 64.0,
                                 onPressed: mediaItem == queue.first
                                     ? null
-                                    : AudioServiceController.skipToPrevious,
+                                    : AudioServiceControllerWrapper().skipToPrevious,
                               ),
                               IconButton(
                                 icon: Icon(Icons.skip_next),
                                 iconSize: 64.0,
                                 onPressed: mediaItem == queue.last
                                     ? null
-                                    : AudioServiceController.skipToNext,
+                                    : AudioServiceControllerWrapper().skipToNext,
                               ),
                             ],
                           ),
@@ -145,7 +144,7 @@ class AudioPlayerWidget extends StatelessWidget {
                 ),
                 // Play/pause/stop buttons.
                 StreamBuilder<bool>(
-                  stream: AudioServiceController.playbackStateStream
+                  stream: AudioServiceControllerWrapper().playbackStateStream
                       .map((state) => state.playing)
                       .distinct(),
                   builder: (context, snapshot) {
@@ -169,13 +168,13 @@ class AudioPlayerWidget extends StatelessWidget {
 //                      mediaState?.mediaItem?.duration ?? Duration.zero,
 //                      position: mediaState?.position ?? Duration.zero,
 //                      onChangeEnd: (newPosition) {
-//                        AudioServiceController.seekTo(newPosition);
+//                        AudioServiceControllerWrapper().seekTo(newPosition);
 //                      },
 //                    );
 //                  },
 //                ),
                 StreamBuilder<PlaybackState>(
-                    stream: AudioServiceController.playbackStateStream,
+                    stream: AudioServiceControllerWrapper().playbackStateStream,
                     builder: (context, snapshot) {
                       Duration duration = snapshot.data?.extras == null ? Duration.zero : Duration(seconds: snapshot.data!.extras![EXTRA_PLAYER_DURATION] as int);
                       Duration position = snapshot.data?.position == null ? Duration.zero : snapshot.data!.position;
@@ -186,7 +185,7 @@ class AudioPlayerWidget extends StatelessWidget {
                             duration: duration,
                             position: position,
                             onChangeEnd: (newPosition) {
-                              AudioServiceController.seekTo(newPosition);
+                              AudioServiceControllerWrapper().seekTo(newPosition);
                             },
                           ),
                         ],
@@ -194,7 +193,7 @@ class AudioPlayerWidget extends StatelessWidget {
                     }),
                 // Display the processing state.
                 StreamBuilder<AudioProcessingState>(
-                  stream: AudioServiceController.playbackStateStream
+                  stream: AudioServiceControllerWrapper().playbackStateStream
                       .map((state) => state.processingState)
                       .distinct(),
                   builder: (context, snapshot) {
@@ -206,14 +205,14 @@ class AudioPlayerWidget extends StatelessWidget {
                 ),
                 // Display the latest custom event.
                 StreamBuilder(
-                  stream: AudioServiceController.customEventStream,
+                  stream: AudioServiceControllerWrapper().customEventStream,
                   builder: (context, snapshot) {
                     return Text("custom event: ${snapshot.data}");
                   },
                 ),
                 // Display the notification click status.
                 StreamBuilder<bool>(
-                  stream: AudioServiceController.notificationClickEventStream,
+                  stream: AudioServiceControllerWrapper().notificationClickEventStream,
                   builder: (context, snapshot) {
                     return Text(
                       'Notification Click Status: ${snapshot.data}',
@@ -231,7 +230,7 @@ class AudioPlayerWidget extends StatelessWidget {
   ElevatedButton audioPlayerButton() => startButton(
     'AudioPlayer',
         () {
-      AudioServiceController.start(
+      AudioServiceControllerWrapper().start(
         backgroundTask: _audioPlayerTaskEntryPoint,
         androidNotificationChannelName: 'Audio Service Demo',
         // Enable this if you want the Android service to exit the foreground state on pause.
@@ -242,7 +241,7 @@ class AudioPlayerWidget extends StatelessWidget {
       ).then((value) {
         print("xiong --- MusicService start result = $value");
           if (value) {
-            AudioServiceController.customAction(CUSTOM_CMD_ADD_MP3_RES, mp3List);//MediaLibrary().items
+            AudioServiceControllerWrapper().customAction(CUSTOM_CMD_ADD_MP3_RES, mp3List);//MediaLibrary().items
           }
         },
       );
@@ -258,42 +257,42 @@ class AudioPlayerWidget extends StatelessWidget {
   IconButton playButton() => IconButton(
     icon: Icon(Icons.play_arrow),
     iconSize: 64.0,
-    onPressed: AudioServiceController.play,
+    onPressed: AudioServiceControllerWrapper().play,
   );
 
   IconButton pauseButton() => IconButton(
     icon: Icon(Icons.pause),
     iconSize: 64.0,
-    onPressed: AudioServiceController.pause,
+    onPressed: AudioServiceControllerWrapper().pause,
   );
 
   IconButton stopButton() => IconButton(
     icon: Icon(Icons.stop),
     iconSize: 64.0,
-    onPressed: AudioServiceController.stop,
+    onPressed: AudioServiceControllerWrapper().stop,
   );
 }
 
 // NOTE: Your entrypoint MUST be a top-level function.
 void _audioPlayerTaskEntryPoint() async {
-  AudioServiceBackground.run(() => AudioPlayerBackgroundTask());
+  AudioServiceBackground.instance.run(() => AudioPlayerBackgroundTask());
 }
 
 
 /// A stream reporting the combined state of the current media item and its
 /// current position.
-Stream<MediaState> get _mediaStateStream =>
-    Rx.combineLatest2<MediaItem?, Duration, MediaState>(
-        AudioServiceController.currentMediaItemStream,
-        AudioServiceController.positionStream,
-            (mediaItem, position) => MediaState(mediaItem, position));
+// Stream<MediaState> get _mediaStateStream =>
+//     Rx.combineLatest2<MediaItem?, Duration, MediaState>(
+//         AudioServiceControllerWrapper().currentMediaItemStream,
+//         AudioServiceControllerWrapper().positionStream,
+//             (mediaItem, position) => MediaState(mediaItem, position));
 
 /// A stream reporting the combined state of the current queue and the current
 /// media item within that queue.
 Stream<QueueState> get _queueStateStream =>
     Rx.combineLatest2<List<MediaItem>?, MediaItem?, QueueState>(
-        AudioServiceController.queueStream,
-        AudioServiceController.currentMediaItemStream,
+        AudioServiceControllerWrapper().queueStream,
+        AudioServiceControllerWrapper().currentMediaItemStream,
             (queue, mediaItem) => QueueState(queue, mediaItem));
 
 class SeekBar extends StatefulWidget {

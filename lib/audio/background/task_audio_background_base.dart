@@ -1,9 +1,11 @@
+import 'package:audio_service/audio/converter/audio_media_type_converter.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 
 import 'package:audio_service/audio/media/audio_media_resource.dart';
-import 'package:audio_service/audio/service/audio_service_controller.dart';
-import 'package:audio_service/audio/service/audio_service_background.dart';
+import 'package:audio_service/audio/controller/audio_service_controller.dart';
+
+import 'audio_service_background.dart';
 
 /// An audio task that can run in the background and react to audio events.
 ///
@@ -14,10 +16,14 @@ import 'package:audio_service/audio/service/audio_service_background.dart';
 ///
 /// 音频后台任务处理器
 /// 主要用于 dart层处理音频后台服务接收的播放控制回调，继承此类实现具体的播放功能
-abstract class BackgroundAudioTask {
+abstract class BackgroundAudioTask<T> {
   final BaseCacheManager? cacheManager;
   late Duration _fastForwardInterval;
   late Duration _rewindInterval;
+
+  late T mMediaItem;
+  late List<T> mMediaQueue;
+  late IAudioMediaTypeConverter mMediaTypeConverter;
 
   /// Subclasses may supply a [cacheManager] to  manage the loading of artwork,
   /// or an instance of [DefaultCacheManager] will be used by default.
@@ -45,12 +51,13 @@ abstract class BackgroundAudioTask {
   /// as this method completes.
   @mustCallSuper
   Future<void> onStop() async {
-    await AudioServiceBackground.shutdown();
+    mMediaQueue = [];
+    await AudioServiceBackground.instance.shutdown();
   }
 
   /// Called when a media browser client, such as Android Auto, wants to query
   /// the available media items to display to the user.
-  Future<List<MediaItem>> onLoadChildren(String parentMediaId) async => [];
+  Future<List<T>> onLoadChildren(String parentMediaId) async => [];
 
   /// Called when the media button on the headset is pressed, or in response to
   /// a call from [AudioService.click]. The default behaviour is:
@@ -110,45 +117,45 @@ abstract class BackgroundAudioTask {
   /// Note: This method can only be triggered by your Flutter UI. Peripheral
   /// devices such as Android Auto will instead trigger
   /// [AudioService.onPlayFromMediaId].
-  Future<void> onPlayMediaItem(MediaItem mediaItem) async {}
+  Future<void> onPlayMediaItem(T mediaItem) async {}
 
   /// Called when a client has requested to add a media item to the queue, such
   /// as via a call to [AudioService.addQueueItem].
-  Future<void> onAddQueueItem(MediaItem mediaItem) async {}
+  Future<void> onAddQueueItem(T mediaItem) async {}
 
   /// Called when the Flutter UI has requested to set a new queue.
   ///
   /// If you use a queue, your implementation of this method should call
   /// [AudioServiceBackground.setQueue] to notify all clients that the queue
   /// has changed.
-  Future<void> onUpdateQueue(List<MediaItem> queue) async {}
+  Future<void> onUpdateQueue(List<T> queue) async {}
 
   /// Called when the Flutter UI has requested to update the details of
   /// a media item.
-  Future<void> onUpdateMediaItem(MediaItem mediaItem) async {}
+  Future<void> onUpdateMediaItem(T mediaItem) async {}
 
   /// Called when a client has requested to add a media item to the queue at a
   /// specified position, such as via a request to
   /// [AudioService.addQueueItemAt].
-  Future<void> onAddQueueItemAt(MediaItem mediaItem, int index) async {}
+  Future<void> onAddQueueItemAt(T mediaItem, int index) async {}
 
   /// Called when a client has requested to remove a media item from the queue,
   /// such as via a request to [AudioService.removeQueueItem].
-  Future<void> onRemoveQueueItem(MediaItem mediaItem) async {}
+  Future<void> onRemoveQueueItem(T mediaItem) async {}
 
   /// Called when a client has requested to skip to the next item in the queue,
   /// such as via a request to [AudioService.skipToNext].
   ///
   /// By default, calls [onSkipToQueueItem] with the queue item after
   /// [AudioServiceBackground.mediaItem] if it exists.
-  Future<void> onSkipToNext() => _skip(1);
+  Future<void> onSkipToNext() => skip(1);
 
   /// Called when a client has requested to skip to the previous item in the
   /// queue, such as via a request to [AudioService.skipToPrevious].
   ///
   /// By default, calls [onSkipToQueueItem] with the queue item before
   /// [AudioServiceBackground.mediaItem] if it exists.
-  Future<void> onSkipToPrevious() => _skip(-1);
+  Future<void> onSkipToPrevious() => skip(-1);
 
   /// Called when a client has requested to fast forward, such as via a
   /// request to [AudioService.fastForward]. An implementation of this callback
@@ -231,15 +238,20 @@ abstract class BackgroundAudioTask {
   /// to kill your service at any time to free up resources).
   Future<void> onClose() => onStop();
 
-  Future<void> _skip(int offset) async {
-    final mediaItem = AudioServiceBackground.mediaItem;
-    if (mediaItem == null) return;
-    final queue = AudioServiceBackground.queue ?? [];
-    int i = queue.indexOf(mediaItem);
-    if (i == -1) return;
-    int newIndex = i + offset;
-    if (newIndex >= 0 && newIndex < queue.length)
-      await onSkipToQueueItem(queue[newIndex].id);
+  Future<void> skip(int offset);
+
+  String getMediaId(T mediaItem);
+
+  T convertRawMapToMediaItem(Map raw) {
+    return mMediaTypeConverter.convertRawMapToMediaItem(raw);
+  }
+
+  List<T> convertRawListToMediaItemList(List rawList) {
+    return mMediaTypeConverter.convertRawListToMediaItemList(rawList) as List<T>;
+  }
+
+  List convertMediaItemListToRawList(List<T> mediaItemList) {
+    return mMediaTypeConverter.convertMediaItemListToRawList(mediaItemList);
   }
 
   void setParams({

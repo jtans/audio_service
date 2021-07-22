@@ -1,13 +1,12 @@
 import 'dart:async';
-import 'dart:collection';
+import 'package:audio_service/audio/converter/audio_media_type_converter.dart';
 import 'package:audio_service/audio/player/audio_player_ijkplayer.dart';
 import 'package:audio_session/audio_session.dart';
 import 'package:flutter_ijkplayer/flutter_ijkplayer.dart';
-import 'package:just_audio/just_audio.dart';
 
+import 'audio_service_background.dart';
 import 'task_audio_background_base.dart';
 import 'package:audio_service/audio/media/audio_media_resource.dart';
-import 'package:audio_service/audio/service/audio_service_background.dart';
 import 'package:audio_service/audio/player/audio_player_interface.dart';
 
 const CUSTOM_CMD_ADD_MP3_RES = "CUSTOM_CMD_ADD_MP3";
@@ -17,7 +16,11 @@ const EXTRA_PLAYER_DURATION = 'extra_player_duration';
 ///
 /// 音频后台任务播放处理器
 /// 根据音频后台服务的播放控制回调，使用播放器实现具体的播放功能
-class AudioPlayerBackgroundTask extends BackgroundAudioTask {
+class AudioPlayerBackgroundTask extends BackgroundAudioTask<MediaItem> {
+
+  AudioPlayerBackgroundTask() {
+    mMediaTypeConverter = AudioMediaTypeConverter();
+  }
 
   IjkAudioPlayer _player = IjkAudioPlayer(IjkMediaController());
 
@@ -28,9 +31,8 @@ class AudioPlayerBackgroundTask extends BackgroundAudioTask {
   late StreamSubscription<IjkStatus>? _audioStatusSubscription;
 
   int index = 0;
-  late List<MediaItem>? queue;
-  late MediaItem _mMediaItem;
-
+  // late List<MediaItem>? queue;
+  // late MediaItem mMediaItem;
 
 
   @override
@@ -107,6 +109,16 @@ class AudioPlayerBackgroundTask extends BackgroundAudioTask {
   Future<void> onSeekBackward(bool begin) async => _seekContinuously(begin, -1);
 
   @override
+  Future<void> skip(int offset) async {
+    if (mMediaItem == null) return;
+    int i = mMediaQueue.indexOf(mMediaItem);
+    if (i == -1) return;
+    int newIndex = i + offset;
+    if (newIndex >= 0 && newIndex < mMediaQueue.length)
+      await onSkipToQueueItem(getMediaId(mMediaQueue[newIndex]));
+  }
+
+  @override
   Future<dynamic> onCustomAction(String name, dynamic arguments) async {
     switch(name) {
       case CUSTOM_CMD_ADD_MP3_RES:
@@ -122,12 +134,12 @@ class AudioPlayerBackgroundTask extends BackgroundAudioTask {
 //        if (queue == null || index >= queue!.length) {
 //          return;
 //        }
-//        _mMediaItem = queue![index];
+//        mMediaItem = queue![index];
 //        // Load and broadcast the queue
 //        await AudioServiceBackground.setQueue(queue!);
-//        await AudioServiceBackground.setMediaItem(_mMediaItem);
+//        await AudioServiceBackground.setMediaItem(mMediaItem);
 //        try {
-//          _player.setNetworkDataSource(_mMediaItem.id);
+//          _player.setNetworkDataSource(mMediaItem.id);
 //          onPlay();
 //        } catch (e) {
 //          print("Error: $e");
@@ -181,7 +193,7 @@ class AudioPlayerBackgroundTask extends BackgroundAudioTask {
     var newPosition = currPos + offset;
     // Make sure we don't jump out of bounds.
     if (newPosition < Duration.zero) newPosition = Duration.zero;
-    if (newPosition > _mMediaItem.duration!) newPosition = _mMediaItem.duration!;
+    if (newPosition > mMediaItem.duration!) newPosition = mMediaItem.duration!;
     // Perform the jump via a seek.
     await _player.seekTo(newPosition);
   }
@@ -193,7 +205,7 @@ class AudioPlayerBackgroundTask extends BackgroundAudioTask {
     _seeker?.stop();
     if (begin) {
       _seeker = Seeker(_player, Duration(seconds: 10 * direction),
-          Duration(seconds: 1), _mMediaItem)
+          Duration(seconds: 1), mMediaItem)
         ..start();
     }
   }
@@ -201,7 +213,7 @@ class AudioPlayerBackgroundTask extends BackgroundAudioTask {
   /// Broadcasts the current state to all clients.
   /// [extra] -- 需额外传输的数据（TODO xiong -- fix: extra为空的话接收端会接收失败）
   Future<void> _broadcastPlayerState({VideoInfo? info, Map<String, dynamic>? extra, bool? needUpdateNotification}) async {
-    await AudioServiceBackground.setPlaybackState(
+    await AudioServiceBackground.instance.setPlaybackState(
       controls: [
         MediaControl.skipToPrevious,
         if (_player.isPlaying()) MediaControl.pause else MediaControl.play,
@@ -223,6 +235,11 @@ class AudioPlayerBackgroundTask extends BackgroundAudioTask {
       extras: extra,
       needUpdateNotification: needUpdateNotification ?? true,
     );
+  }
+
+  @override
+  String getMediaId(MediaItem mediaItem) {
+    return mediaItem.id;
   }
 
 }

@@ -1,5 +1,6 @@
+import 'package:audio_service/audio/controller/audio_service_controller_wrapper.dart';
 import 'package:flutter/material.dart';
-import 'package:audio_service/audio/service/audio_service_controller.dart';
+import 'package:audio_service/audio/controller/audio_service_controller.dart';
 
 /// A widget that maintains a connection to [AudioServiceController].
 ///
@@ -32,12 +33,12 @@ class _AudioServiceGlobalWidgetState extends State<AudioServiceGlobalWidget>
   void initState() {
     super.initState();
     WidgetsBinding.instance!.addObserver(this);
-    AudioServiceController.connect();
+    AudioServiceControllerWrapper().connect();
   }
 
   @override
   void dispose() {
-    AudioServiceController.disconnect();
+    AudioServiceControllerWrapper().disconnect();
     WidgetsBinding.instance!.removeObserver(this);
     super.dispose();
   }
@@ -46,10 +47,10 @@ class _AudioServiceGlobalWidgetState extends State<AudioServiceGlobalWidget>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     switch (state) {
       case AppLifecycleState.resumed:
-        AudioServiceController.connect();
+        AudioServiceControllerWrapper().connect();
         break;
       case AppLifecycleState.paused:
-        AudioServiceController.disconnect();
+        AudioServiceControllerWrapper().disconnect();
         break;
       default:
         break;
@@ -58,7 +59,7 @@ class _AudioServiceGlobalWidgetState extends State<AudioServiceGlobalWidget>
 
   @override
   Future<bool> didPopRoute() async {
-    AudioServiceController.disconnect();
+    AudioServiceControllerWrapper().disconnect();
     return false;
   }
 

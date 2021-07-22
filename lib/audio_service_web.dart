@@ -2,12 +2,12 @@ import 'dart:async';
 import 'dart:html' as html;
 import 'dart:js' as js;
 
-import 'js/media_session_web.dart';
-
+import 'package:audio_service/audio/controller/audio_service_controller_wrapper.dart';
+import 'package:audio_service/audio/media/audio_media_resource.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_web_plugins/flutter_web_plugins.dart';
-import 'package:audio_service/audio/media/audio_media_resource.dart';
-import 'package:audio_service/audio/service/audio_service_controller.dart';
+
+import 'js/media_session_web.dart';
 
 const String _CUSTOM_PREFIX = 'custom_';
 
@@ -229,31 +229,37 @@ class BackgroundHandler {
       try {
         switch (control.action) {
           case MediaAction.play:
-            session.setActionHandler('play', AudioServiceController.play);
+            session.setActionHandler(
+                'play', AudioServiceControllerWrapper().play);
             break;
           case MediaAction.pause:
-            session.setActionHandler('pause', AudioServiceController.pause);
+            session.setActionHandler(
+                'pause', AudioServiceControllerWrapper().pause);
             break;
           case MediaAction.skipToPrevious:
-            session.setActionHandler(
-                'previoustrack', AudioServiceController.skipToPrevious);
+            session.setActionHandler('previoustrack',
+                AudioServiceControllerWrapper().skipToPrevious);
             break;
           case MediaAction.skipToNext:
-            session.setActionHandler('nexttrack', AudioServiceController.skipToNext);
+            session.setActionHandler(
+                'nexttrack', AudioServiceControllerWrapper().skipToNext);
             break;
-        // The naming convention here is a bit odd but seekbackward seems more
-        // analagous to rewind than seekBackward
+          // The naming convention here is a bit odd but seekbackward seems more
+          // analagous to rewind than seekBackward
           case MediaAction.rewind:
-            session.setActionHandler('seekbackward', AudioServiceController.rewind);
+            session.setActionHandler(
+                'seekbackward', AudioServiceControllerWrapper().rewind);
             break;
           case MediaAction.fastForward:
-            session.setActionHandler('seekforward', AudioServiceController.fastForward);
+            session.setActionHandler(
+                'seekforward', AudioServiceControllerWrapper().fastForward);
             break;
           case MediaAction.stop:
-            session.setActionHandler('stop', AudioServiceController.stop);
+            session.setActionHandler(
+                'stop', AudioServiceControllerWrapper().stop);
             break;
           default:
-          // no-op
+            // no-op
             break;
         }
       } catch (e) {}
@@ -271,14 +277,14 @@ class BackgroundHandler {
               //print(ev.action);
               //print(ev.seekTime);
               // Chrome uses seconds for whatever reason
-              AudioServiceController.seekTo(Duration(
+              AudioServiceControllerWrapper().seekTo(Duration(
                 milliseconds: (ev.seekTime * 1000).round(),
               ));
             }));
           } catch (e) {}
           break;
         default:
-        // no-op
+          // no-op
           break;
       }
 
@@ -320,7 +326,7 @@ class BackgroundHandler {
     mediaItem = MediaItem.fromJson(call.arguments);
     // This would be how we could pull images out of the cache... But nothing is actually cached on web
     final artUri = /* mediaItem.extras['artCacheFile'] ?? */
-    mediaItem!.artUri;
+        mediaItem!.artUri;
 
     try {
       metadata = html.MediaMetadata({

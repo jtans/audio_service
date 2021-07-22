@@ -1,5 +1,5 @@
+import 'package:audio_service/audio/controller/audio_service_controller_wrapper.dart';
 import 'package:flutter/material.dart';
-import 'package:audio_service/audio/service/audio_service_controller.dart';
 
 /// 主要使用于局部单独需要展示音频内容的界面，生命周期绑定当前页面
 /// 应用场景：APP局部单页面与后台服务的通信
@@ -19,12 +19,12 @@ class _AudioServiceLocalWidgetState extends State<AudioServiceLocalWidget> {
   @override
   void initState() {
     super.initState();
-    AudioServiceController.connect(onConnectCallback: widget.onConnectResult);
+    AudioServiceControllerWrapper().connect(onConnectCallback: widget.onConnectResult);
   }
 
   @override
   void dispose() {
-    AudioServiceController.disconnect();
+    AudioServiceControllerWrapper().disconnect();
     super.dispose();
   }
 
