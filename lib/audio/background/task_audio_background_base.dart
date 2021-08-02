@@ -21,8 +21,8 @@ abstract class BackgroundAudioTask<T> {
   late Duration _fastForwardInterval;
   late Duration _rewindInterval;
 
-  late T mMediaItem;
-  late List<T> mMediaQueue;
+  late T? mMediaItem;
+  late List<T>? mMediaQueue;
   late IAudioMediaTypeConverter mMediaTypeConverter;
 
   /// Subclasses may supply a [cacheManager] to  manage the loading of artwork,
@@ -52,7 +52,7 @@ abstract class BackgroundAudioTask<T> {
   @mustCallSuper
   Future<void> onStop() async {
     mMediaQueue = [];
-    await AudioServiceBackground.instance.shutdown();
+    await AudioServiceBackground().shutdown();
   }
 
   /// Called when a media browser client, such as Android Auto, wants to query
@@ -238,7 +238,14 @@ abstract class BackgroundAudioTask<T> {
   /// to kill your service at any time to free up resources).
   Future<void> onClose() => onStop();
 
-  Future<void> skip(int offset);
+  Future<void> skip(int offset) async {
+    if (mMediaItem == null) return;
+    int i = mMediaQueue?.indexOf(mMediaItem!) ?? 0;
+    if (i == -1) return;
+    int newIndex = i + offset;
+    if (newIndex >= 0 && newIndex < mMediaQueue!.length)
+      await onSkipToQueueItem(getMediaId(mMediaQueue![newIndex]));
+  }
 
   String getMediaId(T mediaItem);
 

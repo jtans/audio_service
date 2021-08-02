@@ -71,7 +71,7 @@ import io.flutter.view.FlutterRunArguments;
 public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
     private static final String CHANNEL_AUDIO_SERVICE = "ryanheise.com/audioService";
     private static final String CHANNEL_AUDIO_SERVICE_BACKGROUND = "ryanheise.com/audioServiceBackground";
-    private static final String NOTIFICATION_CLICK_ACTION = "com.ryanheise.audioservice.NOTIFICATION_CLICK";
+    public static final String NOTIFICATION_CLICK_ACTION = "com.ryanheise.audioservice.NOTIFICATION_CLICK";
     private static final String EXTRA_MAP = "EXTRA_MAP";
 
     private static PluginRegistrantCallback pluginRegistrantCallback;
@@ -120,6 +120,15 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
             });
         } else {
             backgroundHandler.init(registrar.messenger());
+        }
+    }
+
+    /**
+     * 暴露通知点击事件处理接口到外层
+     */
+    public static void handleNotificationClick(Activity activity) {
+        if (mainClientHandler != null && mainClientHandler.channel != null) {
+            mainClientHandler.channel.invokeMethod("notificationClicked", true);
         }
     }
 
@@ -363,10 +372,14 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
                         : new Size((int)Math.round(artDownscaleSizeMap.get("width")), (int)Math.round(artDownscaleSizeMap.get("height")));
                     fastForwardInterval = getLong(arguments.get("fastForwardInterval"));
                     rewindInterval = getLong(arguments.get("rewindInterval"));
+                    String clientPackageName = (String)arguments.get("clientPackageName");
 
                     final String appBundlePath = FlutterMain.findAppBundlePath(context.getApplicationContext());
                     backgroundHandler = new BackgroundHandler(callbackHandle, appBundlePath, androidEnableQueue);
-                    AudioService.init(activity, androidResumeOnClick, androidNotificationChannelName, androidNotificationChannelDescription, NOTIFICATION_CLICK_ACTION, androidNotificationColor, androidNotificationIcon, androidShowNotificationBadge ,androidNotificationClickStartsActivity, androidNotificationOngoing, androidStopForegroundOnPause, artDownscaleSize, backgroundHandler);
+                    AudioService.init(activity, androidResumeOnClick, androidNotificationChannelName,
+                            androidNotificationChannelDescription, NOTIFICATION_CLICK_ACTION, androidNotificationColor,
+                            androidNotificationIcon, androidShowNotificationBadge ,androidNotificationClickStartsActivity,
+                            androidNotificationOngoing, androidStopForegroundOnPause, artDownscaleSize, backgroundHandler, clientPackageName);
 
                     synchronized (connectionCallback) {
                         if (mediaController != null)

@@ -27,6 +27,7 @@ import android.support.v4.media.RatingCompat;
 import android.support.v4.media.session.MediaControllerCompat;
 import android.support.v4.media.session.MediaSessionCompat;
 import android.support.v4.media.session.PlaybackStateCompat;
+import android.util.Log;
 import android.util.LruCache;
 import android.view.KeyEvent;
 
@@ -45,7 +46,8 @@ import java.util.Set;
 public class AudioService extends MediaBrowserServiceCompat {
     private static final int NOTIFICATION_ID = 1124;
     private static final int REQUEST_CONTENT_INTENT = 1000;
-    private static final String MEDIA_ROOT_ID = "root";
+    private static final String MEDIA_ROOT_ID = "media_root_id";
+    private static final String EMPTY_MEDIA_ROOT_ID = "empty_media_root_id";
     // See the comment in onMediaButtonEvent to understand how the BYPASS keycodes work.
     // We hijack KEYCODE_MUTE and KEYCODE_MEDIA_RECORD since the media session subsystem
     // considers these keycodes relevant to media playback and will pass them on to us.
@@ -66,6 +68,7 @@ public class AudioService extends MediaBrowserServiceCompat {
     static boolean androidNotificationClickStartsActivity;
     static boolean androidNotificationOngoing;
     static boolean androidStopForegroundOnPause;
+    static String checkClientPackageName;
     private static List<MediaSessionCompat.QueueItem> queue = new ArrayList<MediaSessionCompat.QueueItem>();
     private static int queueIndex = -1;
     private static Map<String, MediaMetadataCompat> mediaMetadataCache = new HashMap<>();
@@ -82,13 +85,14 @@ public class AudioService extends MediaBrowserServiceCompat {
                             String androidNotificationChannelDescription, String action, Integer notificationColor,
                             String androidNotificationIcon, boolean androidShowNotificationBadge,
                             boolean androidNotificationClickStartsActivity, boolean androidNotificationOngoing,
-                            boolean androidStopForegroundOnPause, Size artDownscaleSize, ServiceListener listener) {
+                            boolean androidStopForegroundOnPause, Size artDownscaleSize, ServiceListener listener, String clientPackageName) {
         if (running)
             throw new IllegalStateException("AudioService already running");
         running = true;
 
         Context context = activity.getApplicationContext();
         Intent intent = new Intent(context, activity.getClass());
+        intent.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
         intent.setAction(action);
         contentIntent = PendingIntent.getActivity(context, REQUEST_CONTENT_INTENT, intent, PendingIntent.FLAG_UPDATE_CURRENT);
         AudioService.listener = listener;
@@ -102,6 +106,7 @@ public class AudioService extends MediaBrowserServiceCompat {
         AudioService.androidNotificationOngoing = androidNotificationOngoing;
         AudioService.androidStopForegroundOnPause = androidStopForegroundOnPause;
         AudioService.artDownscaleSize = artDownscaleSize;
+        AudioService.checkClientPackageName = clientPackageName;
 
         notificationCreated = false;
         playing = false;
@@ -251,12 +256,16 @@ public class AudioService extends MediaBrowserServiceCompat {
         if (!wasPlaying && playing) {
             enterPlayingState();
         } else if (wasPlaying && !playing) {
-            exitPlayingState();
+//            exitPlayingState();
+            if(needUpdateNotification) {
+                exitPlayingState();
+                updateNotification();
+            }
         }
 
-        if(needUpdateNotification) {
-            updateNotification();
-        }
+//        if(needUpdateNotification) {
+//            updateNotification();
+//        }
     }
 
     public int getPlaybackState() {
@@ -298,6 +307,7 @@ public class AudioService extends MediaBrowserServiceCompat {
                 builder.setLargeIcon(description.getIconBitmap());
         }
         if (androidNotificationClickStartsActivity)
+            //TODO xiong -- 补充：通知栏点击跳转界面
             builder.setContentIntent(mediaSession.getController().getSessionActivity());
         if (notificationColor != null)
             builder.setColor(notificationColor);
@@ -539,12 +549,21 @@ public class AudioService extends MediaBrowserServiceCompat {
 
     @Override
     public BrowserRoot onGetRoot(String clientPackageName, int clientUid, Bundle rootHints) {
-        return new BrowserRoot(MEDIA_ROOT_ID, null);
+        if (isAllowConnect(clientPackageName, clientUid)) {
+            return new BrowserRoot(MEDIA_ROOT_ID, null);
+        } else {
+            return new BrowserRoot(EMPTY_MEDIA_ROOT_ID, null);
+        }
+    }
+
+    private boolean isAllowConnect(String clientPackageName, int clientUid) {
+        Log.i("xiong", "clientPackageName = " + clientPackageName + ", clientUid = " + clientUid);
+        return clientPackageName != null && clientPackageName.equals(checkClientPackageName);
     }
 
     @Override
     public void onLoadChildren(final String parentMediaId, final Result<List<MediaBrowserCompat.MediaItem>> result) {
-        if (listener == null) {
+        if (listener == null || parentMediaId.equals(EMPTY_MEDIA_ROOT_ID)) {
             result.sendResult(new ArrayList<MediaBrowserCompat.MediaItem>());
             return;
         }

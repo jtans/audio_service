@@ -45,10 +45,6 @@ class AudioServiceController<T> {
   /// True if the background task runs in its own isolate, false if it doesn't.
   static bool get usesIsolate => !(kIsWeb || Platform.isMacOS) && !testMode;
 
-  // /// The root media ID for browsing media provided by the background
-  // /// task.
-  // static const String MEDIA_ROOT_ID = "root";
-
   /// If a seek is in progress, this holds the position we are seeking to.
   static Duration? _seekPos;
 
@@ -102,14 +98,14 @@ class AudioServiceController<T> {
   List<T>? get queue => _queueSubject.nvalue;
 
   /// ----------------------- notification Notify -----------------------///
-  final _notificationSubject = BehaviorSubject.seeded(false);
+  static final _notificationSubject = BehaviorSubject.seeded(false);
 
   /// A stream that broadcasts the status of the notificationClick event.
-  ValueStream<bool> get notificationClickEventStream =>
+  static ValueStream<bool> get notificationClickEventStream =>
       _notificationSubject.stream;
 
   /// The status of the notificationClick event.
-  bool get notificationClickEvent =>
+  static bool get notificationClickEvent =>
       _notificationSubject.nvalue ?? false;
 
   /// ----------------------- customEvent Notify -----------------------///
@@ -165,7 +161,7 @@ class AudioServiceController<T> {
               Map<String, dynamic> extras =
                   args[9] == null ? null : args[9].cast<String, dynamic>();
 
-              print("xiong -- Background onPlaybackStateChanged extras = $extras, position = ${args[3]}");
+              // print("xiong -- Background onPlaybackStateChanged extras = $extras, position = ${args[3]}");
               _playbackStateSubject.add(PlaybackState(
                 processingState: AudioProcessingState.values[args[0]],
                 playing: args[1],
@@ -206,6 +202,7 @@ class AudioServiceController<T> {
               _afterStop = true;
               break;
             case 'notificationClicked':
+              print("xiong -- MainActivity AudioService notificationClicked ${call.arguments[0]}");
               _notificationSubject.add(call.arguments[0]);
               break;
           }
@@ -226,15 +223,18 @@ class AudioServiceController<T> {
               _customEventReceivePort!.sendPort, CUSTOM_EVENT_PORT_NAME);
         }
         bool result = (await _channel.invokeMethod<bool>("connect"))!;
-        if (onConnectCallback != null) {
-          onConnectCallback(result);
-        }
+        print("xiong -- AudioService connect result = $result");
 
         final running = (await _channel.invokeMethod<bool>("isRunning"))!;
         if (running != _runningSubject.nvalue) {
           _runningSubject.add(running);
         }
+        print("xiong -- AudioService running result = $running");
         _connected = true;
+
+        if (onConnectCallback != null) {
+          onConnectCallback(result);
+        }
       });
 
   /// Disconnects your UI from the service.
@@ -330,15 +330,21 @@ class AudioServiceController<T> {
     bool androidNotificationClickStartsActivity = true,
     bool androidNotificationOngoing = false,
     bool androidResumeOnClick = true,
-    bool androidStopForegroundOnPause = false,
+    bool androidStopForegroundOnPause = true,
     bool androidEnableQueue = false,
     Size? androidArtDownscaleSize,
     Duration fastForwardInterval = const Duration(seconds: 10),
     Duration rewindInterval = const Duration(seconds: 10),
+    String? clientPackageName
   }) async {
     assert(fastForwardInterval > Duration.zero,
         "fastForwardDuration must be positive");
     assert(rewindInterval > Duration.zero, "rewindInterval must be positive");
+
+    print("xiong -- StartService usesIsolate=$usesIsolate, params=$params"
+        ", androidNotificationChannelDescription=$androidNotificationChannelDescription"
+        ", androidArtDownscaleSize=$androidArtDownscaleSize");
+
     return await _asyncTaskQueue.schedule(() async {
       if (!_connected) throw Exception("Not connected");
       if (running) return false;
@@ -370,7 +376,7 @@ class AudioServiceController<T> {
       }
       final success = (await _channel.invokeMethod<bool>('start', {
         'callbackHandle': callbackHandle,
-        'params': params,
+        'params': params ?? null,
         'androidNotificationChannelName': androidNotificationChannelName,
         'androidNotificationChannelDescription':
             androidNotificationChannelDescription,
@@ -391,7 +397,9 @@ class AudioServiceController<T> {
             : null,
         'fastForwardInterval': fastForwardInterval.inMilliseconds,
         'rewindInterval': rewindInterval.inMilliseconds,
+        'clientPackageName' : clientPackageName ?? null
       }))!;
+      print("xiong -- AudioService start result = $success");
       if (!usesIsolate) {
         _startNonIsolateCompleter = Completer();
         backgroundTask();

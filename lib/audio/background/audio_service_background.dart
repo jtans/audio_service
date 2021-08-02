@@ -26,12 +26,13 @@ import 'task_audio_background_base.dart';
 /// 音频后台服务
 /// 主要响应播放界面的各播放功能按钮（如播放、上一节、下一节等），服务端接收到相应回调，进行播放相关功能处理
 /// 具体的播放相关功能交由 BackgroundAudioTask 进行处理
-const String MEDIA_ROOT_ID = "root";
+const String MEDIA_ROOT_ID = "media_root_id";
 class AudioServiceBackground {
 
   AudioServiceBackground._privateConstructor();
   static final AudioServiceBackground _instance = AudioServiceBackground._privateConstructor();
-  static AudioServiceBackground get instance { return _instance;}
+  // static AudioServiceBackground get instance { return _instance;}
+  factory AudioServiceBackground() => _instance;
 
 
   static final PlaybackState noneState = PlaybackState(
@@ -163,6 +164,7 @@ class AudioServiceBackground {
         String parentMediaId = args[0];
         List<dynamic> list = await _task.onLoadChildren(parentMediaId);
         List rawMediaItems = _task.convertMediaItemListToRawList(list);
+        print("xiong -- AudioService onLoadChildren parentMediaId = $parentMediaId, mediaItems = $rawMediaItems");
         return rawMediaItems as dynamic;
       case 'onClick':
         final List args = call.arguments;
