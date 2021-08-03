@@ -78,7 +78,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
     private static Set<ClientHandler> clientHandlers = new HashSet<ClientHandler>();
     private static ClientHandler mainClientHandler;
     private static BackgroundHandler backgroundHandler;
-    private static FlutterEngine backgroundFlutterEngine;
+    public static FlutterEngine backgroundFlutterEngine;
     private static int nextQueueItemId = 0;
     private static List<String> queueMediaIds = new ArrayList<String>();
     private static Map<String, Integer> queueItemIds = new HashMap<String, Integer>();
@@ -396,10 +396,10 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
                         break;
                     }
                     if (activity != null) {
-                        if (wasLaunchedFromRecents()) {
-                            // We do this to avoid using the old intent.
-                            activity.setIntent(new Intent(Intent.ACTION_MAIN));
-                        }
+//                        if (wasLaunchedFromRecents()) {
+//                            // We do this to avoid using the old intent.
+//                            activity.setIntent(new Intent(Intent.ACTION_MAIN));
+//                        }
                         if (activity.getIntent().getAction() != null)
                             invokeMethod("notificationClicked", activity.getIntent().getAction().equals(NOTIFICATION_CLICK_ACTION));
                     }
@@ -598,6 +598,14 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
         }
     }
 
+    public static void loadAudioPlayPage() {
+        //适用于Application重启后重新加载的情况
+        if (backgroundFlutterEngine != null) {
+            backgroundFlutterEngine.getDartExecutor().executeDartEntrypoint(
+                    new DartExecutor.DartEntrypoint(backgroundHandler.appBundlePath, "openAudioPage"));
+        }
+    }
+
     private static class BackgroundHandler implements MethodCallHandler, AudioService.ServiceListener {
         private long callbackHandle;
         private String appBundlePath;
@@ -622,6 +630,8 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
         public void initEngine() {
             Context context = AudioService.instance;
             backgroundFlutterEngine = new FlutterEngine(context.getApplicationContext());
+            //TODO xiong -- test：测试音频页跳转
+            backgroundFlutterEngine.getNavigationChannel().setInitialRoute("/page_audio");
             FlutterCallbackInformation cb = FlutterCallbackInformation.lookupCallbackInformation(callbackHandle);
             if (cb == null || appBundlePath == null) {
                 sendStartResult(false);

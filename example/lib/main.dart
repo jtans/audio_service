@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'dart:ui';
 
 import 'package:audio_service/audio/background/audio_service_background.dart';
 import 'package:audio_service/audio/background/task_audio_background_player.dart';
@@ -10,7 +11,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:rxdart/rxdart.dart';
 
-void main() => runApp(new MyApp());
+void main() => runApp(MyApp());
 
 class MyApp extends StatelessWidget {
   @override
@@ -18,17 +19,49 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Audio Service Demo',
       theme: ThemeData(primarySwatch: Colors.blue),
-      home: MainScreen(),
+      // home: MainScreen(),
+      // initialRoute: '/main',
+      routes: {
+        '/main':(context) => MainScreen(),
+        '/page_audio':(context) => AudioPlayerPageRoute(),
+      },
+      // onGenerateInitialRoutes: (name) {
+      //   return [MaterialPageRoute(builder: (context) {
+      //     print("xiong -- onGenerateInitialRoutes name = $name");
+      //     if (name == "/page_audio") {
+      //       return AudioPlayerPageRoute();
+      //     } else if (name == "/main") {
+      //       return MainScreen();
+      //     } else {
+      //       return MainScreen();
+      //     }
+      //   })];
+      // },
+      onGenerateRoute:  (RouteSettings settings) {
+        String? name = settings.name;
+        if (name == '/main' || name == "/") {
+          return MaterialPageRoute(settings: settings, builder: (BuildContext context) => MainScreen());
+        }
+        if (name == '/page_audio') {
+          return MaterialPageRoute(settings: settings, builder: (BuildContext context) => AudioPlayerPageRoute());
+        }
+        return MaterialPageRoute(settings: settings, builder: (BuildContext context) => MainScreen());
+      },
+      // home: _getRouter(window.defaultRouteName),
     );
   }
 }
 
-class MainScreen extends StatefulWidget {
+void openAudioPage() {
+  runApp(AudioPlayerPageRoute());
+}
 
-  @override
-  State<StatefulWidget> createState() {
-    return _MainScreenState();
-  }
+class MainScreen extends StatelessWidget {
+
+  // @override
+  // State<StatefulWidget> createState() {
+  //   return _MainScreenState();
+  // }
 
   // MainScreen(BuildContext context) {
   //   print("xiong -- MainScreen Create, 是否通过通知栏跳转音频页：${AudioServiceControllerWrapper.hasNotificationClick}");
@@ -49,68 +82,6 @@ class MainScreen extends StatefulWidget {
   //   });
   // }
 
-  // @override
-  // Widget build(BuildContext context) {
-  //   return Scaffold(
-  //     appBar: AppBar(
-  //       title: const Text('Audio Service Demo - Refactor'),
-  //     ),
-  //     body: Center(
-  //       child: Column(
-  //         children: [
-  //           RaisedButton(
-  //             onPressed: () {
-  //               Navigator.push(context, MaterialPageRoute(builder: (context) {
-  //                 return AudioPlayerPageRoute();
-  //               }));
-  //             },
-  //             child: Text('跳转音频播放页'),
-  //           ),
-  //           // StreamBuilder<bool>(
-  //           //   stream: AudioServiceControllerWrapper().notificationClickEventStream,
-  //           //   builder: (context, snapshot) {
-  //           //     if(snapshot.data != null && snapshot.data == true) {
-  //           //       print("xiong -- AudioServiceController notificationClickEventStream 跳转音频播放页"
-  //           //           ", Notification Click Status: ${snapshot.data}");
-  //           //       Navigator.push(context, MaterialPageRoute(builder: (context) {
-  //           //         return AudioPlayerPageRoute();
-  //           //       }));
-  //           //     }
-  //           //     return Text(
-  //           //       'Notification Click Status: ${snapshot.data}',
-  //           //     );
-  //           //   },
-  //           // ),
-  //         ],
-  //       )
-  //     ),
-  //   );
-  // }
-}
-
-class _MainScreenState extends State<MainScreen> {
-
-  @override
-  void initState() {
-    super.initState();
-    print("xiong -- MainScreen initState, 是否通过通知栏跳转音频页：${AudioServiceControllerWrapper.hasNotificationClick}");
-    if (AudioServiceControllerWrapper.hasNotificationClick) {
-      print("xiong -- MainScreen 跳转音频页");
-      Navigator.push(context, MaterialPageRoute(builder: (context) {
-        return AudioPlayerPageRoute();
-      }));
-    }
-    AudioServiceControllerWrapper.notificationClickEventStream.listen((event) {
-      print("xiong -- MainScreen notificationClick = $event");
-      if (event == true) {
-        print("xiong -- MainScreen 接收到通知栏回调，跳转音频页");
-        Navigator.push(context, MaterialPageRoute(builder: (context) {
-          return AudioPlayerPageRoute();
-        }));
-      }
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -118,37 +89,99 @@ class _MainScreenState extends State<MainScreen> {
         title: const Text('Audio Service Demo - Refactor'),
       ),
       body: Center(
-          child: Column(
-            children: [
-              RaisedButton(
-                onPressed: () {
-                  Navigator.push(context, MaterialPageRoute(builder: (context) {
-                    return AudioPlayerPageRoute();
-                  }));
-                },
-                child: Text('跳转音频播放页'),
-              ),
-              // StreamBuilder<bool>(
-              //   stream: AudioServiceControllerWrapper().notificationClickEventStream,
-              //   builder: (context, snapshot) {
-              //     if(snapshot.data != null && snapshot.data == true) {
-              //       print("xiong -- AudioServiceController notificationClickEventStream 跳转音频播放页"
-              //           ", Notification Click Status: ${snapshot.data}");
-              //       Navigator.push(context, MaterialPageRoute(builder: (context) {
-              //         return AudioPlayerPageRoute();
-              //       }));
-              //     }
-              //     return Text(
-              //       'Notification Click Status: ${snapshot.data}',
-              //     );
-              //   },
-              // ),
-            ],
-          )
+        child: Column(
+          children: [
+            RaisedButton(
+              onPressed: () {
+                Navigator.push(context, MaterialPageRoute(builder: (context) {
+                  return AudioPlayerPageRoute();
+                }));
+              },
+              child: Text('跳转音频播放页'),
+            ),
+            // StreamBuilder<bool>(
+            //   stream: AudioServiceControllerWrapper.notificationClickEventStream,
+            //   builder: (context, snapshot) {
+            //     if(snapshot.data != null && snapshot.data == true) {
+            //       print("xiong -- AudioServiceController notificationClickEventStream 跳转音频播放页"
+            //           ", Notification Click Status: ${snapshot.data}");
+            //       Navigator.push(context, MaterialPageRoute(builder: (context) {
+            //         return AudioPlayerPageRoute();
+            //       }));
+            //     }
+            //     return Text(
+            //       'Notification Click Status: ${snapshot.data}',
+            //     );
+            //   },
+            // ),
+          ],
+        )
       ),
     );
   }
 }
+
+// class _MainScreenState extends State<MainScreen> {
+//
+//   @override
+//   void initState() {
+//     super.initState();
+//     print("xiong -- MainScreen initState, 是否通过通知栏跳转音频页：${AudioServiceControllerWrapper.hasNotificationClick}");
+//     if (AudioServiceControllerWrapper.hasNotificationClick) {
+//       print("xiong -- MainScreen 跳转音频页");
+//       Navigator.push(context, MaterialPageRoute(builder: (context) {
+//         return AudioPlayerPageRoute();
+//       }));
+//     }
+//     AudioServiceControllerWrapper.notificationClickEventStream.listen((event) {
+//       print("xiong -- MainScreen notificationClick = $event");
+//       if (event == true) {
+//         print("xiong -- MainScreen 接收到通知栏回调，跳转音频页");
+//         Navigator.push(context, MaterialPageRoute(builder: (context) {
+//           return AudioPlayerPageRoute();
+//         }));
+//       }
+//     });
+//   }
+//
+//   @override
+//   Widget build(BuildContext context) {
+//     return Scaffold(
+//       appBar: AppBar(
+//         title: const Text('Audio Service Demo - Refactor'),
+//       ),
+//       body: Center(
+//           child: Column(
+//             children: [
+//               RaisedButton(
+//                 onPressed: () {
+//                   Navigator.push(context, MaterialPageRoute(builder: (context) {
+//                     return AudioPlayerPageRoute();
+//                   }));
+//                 },
+//                 child: Text('跳转音频播放页'),
+//               ),
+//               // StreamBuilder<bool>(
+//               //   stream: AudioServiceControllerWrapper().notificationClickEventStream,
+//               //   builder: (context, snapshot) {
+//               //     if(snapshot.data != null && snapshot.data == true) {
+//               //       print("xiong -- AudioServiceController notificationClickEventStream 跳转音频播放页"
+//               //           ", Notification Click Status: ${snapshot.data}");
+//               //       Navigator.push(context, MaterialPageRoute(builder: (context) {
+//               //         return AudioPlayerPageRoute();
+//               //       }));
+//               //     }
+//               //     return Text(
+//               //       'Notification Click Status: ${snapshot.data}',
+//               //     );
+//               //   },
+//               // ),
+//             ],
+//           )
+//       ),
+//     );
+//   }
+// }
 
 
 List<String> mp3List = [
