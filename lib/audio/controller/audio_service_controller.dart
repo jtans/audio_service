@@ -357,7 +357,6 @@ class AudioServiceController<T> {
           return false;
         }
       }
-
       var callbackHandle = handle?.toRawHandle();
       if (kIsWeb) {
         // Platform throws runtime exceptions on web

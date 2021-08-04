@@ -39,6 +39,7 @@ class MyApp extends StatelessWidget {
       // },
       onGenerateRoute:  (RouteSettings settings) {
         String? name = settings.name;
+        print("xiong -- onGenerateRoute name = $name");
         if (name == '/main' || name == "/") {
           return MaterialPageRoute(settings: settings, builder: (BuildContext context) => MainScreen());
         }

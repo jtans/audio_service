@@ -1,5 +1,6 @@
 package com.ryanheise.audioservice;
 
+import io.flutter.embedding.engine.FlutterEngineCache;
 import io.flutter.embedding.engine.plugins.service.*;
 
 import android.app.Activity;
@@ -73,6 +74,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
     private static final String CHANNEL_AUDIO_SERVICE_BACKGROUND = "ryanheise.com/audioServiceBackground";
     public static final String NOTIFICATION_CLICK_ACTION = "com.ryanheise.audioservice.NOTIFICATION_CLICK";
     private static final String EXTRA_MAP = "EXTRA_MAP";
+    public static final String CACHE_ENGINE_ID = "cache_engine_id";
 
     private static PluginRegistrantCallback pluginRegistrantCallback;
     private static Set<ClientHandler> clientHandlers = new HashSet<ClientHandler>();
@@ -630,8 +632,6 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
         public void initEngine() {
             Context context = AudioService.instance;
             backgroundFlutterEngine = new FlutterEngine(context.getApplicationContext());
-            //TODO xiong -- test：测试音频页跳转
-            backgroundFlutterEngine.getNavigationChannel().setInitialRoute("/page_audio");
             FlutterCallbackInformation cb = FlutterCallbackInformation.lookupCallbackInformation(callbackHandle);
             if (cb == null || appBundlePath == null) {
                 sendStartResult(false);
