@@ -205,9 +205,11 @@ class AudioServiceBackground {
       case 'onSkipToPrevious':
         return await _task.onSkipToPrevious();
       case 'onFastForward':
-        return await _task.onFastForward();
+        int fastForwardIntervalForSeconds = call.arguments[0];
+        return await _task.onFastForward(Duration(seconds: fastForwardIntervalForSeconds));
       case 'onRewind':
-        return await _task.onRewind();
+        int rewindIntervalForSeconds = call.arguments[0];
+        return await _task.onRewind(Duration(seconds: rewindIntervalForSeconds));
       case 'onSkipToQueueItem':
         final List args = call.arguments;
         String mediaId = args[0];
@@ -470,6 +472,17 @@ class AudioServiceBackground {
     //       'setMediaItem', platformMediaItem.toJson());
     // } else {
       await _backgroundChannel.invokeMethod('setMediaItem', (mediaItem as dynamic).toJson());
+    // }
+  }
+
+  ///更新MediaItem，与setMediaItem优点在于：仅传输必要及需要的数据 Map，方便拓展
+  ///Map必传参数如下：
+  ///[id] -- Media Id
+  ///[title] -- Media Title
+  ///[displayTitle] -- Media displayTitle 通知栏显示的主标题
+  ///[displaySubtitle] -- Media displaySubtitle 通知栏显示的副标题
+  Future<void> setMediaItemRaw(Map mediaRawMap) async {
+    await _backgroundChannel.invokeMethod('setMediaItem', mediaRawMap);
     // }
   }
 

@@ -553,10 +553,12 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
                     backgroundHandler().invokeMethod(result, "onSkipToPrevious");
                     break;
                 case "fastForward":
-                    backgroundHandler().invokeMethod(result, "onFastForward");
+                    int fastForwardIntervalForSeconds = (Integer)call.arguments;
+                    backgroundHandler().invokeMethod(result, "onFastForward", fastForwardIntervalForSeconds);
                     break;
                 case "rewind":
-                    backgroundHandler().invokeMethod(result, "onRewind");
+                    int rewindIntervalForSeconds = (Integer)call.arguments;
+                    backgroundHandler().invokeMethod(result, "onRewind", rewindIntervalForSeconds);
                     break;
                 case "setRepeatMode":
                     int repeatMode = (Integer)call.arguments;
@@ -1074,16 +1076,16 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
     private static MediaMetadataCompat createMediaMetadata(Map<?, ?> rawMediaItem) {
         return AudioService.createMediaMetadata(
                 (String)rawMediaItem.get("id"),
-                (String)rawMediaItem.get("album"),
                 (String)rawMediaItem.get("title"),
+                (String)rawMediaItem.get("displayTitle"),
+                (String)rawMediaItem.get("displaySubtitle"),
+                (String)rawMediaItem.get("displayDescription"),
+                (String)rawMediaItem.get("album"),
                 (String)rawMediaItem.get("artist"),
                 (String)rawMediaItem.get("genre"),
                 getLong(rawMediaItem.get("duration")),
                 (String)rawMediaItem.get("artUri"),
                 (Boolean)rawMediaItem.get("playable"),
-                (String)rawMediaItem.get("displayTitle"),
-                (String)rawMediaItem.get("displaySubtitle"),
-                (String)rawMediaItem.get("displayDescription"),
                 raw2rating((Map<String, Object>)rawMediaItem.get("rating")),
                 (Map<?, ?>)rawMediaItem.get("extras")
         );

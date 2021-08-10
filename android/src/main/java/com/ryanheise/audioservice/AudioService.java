@@ -253,26 +253,22 @@ public class AudioService extends MediaBrowserServiceCompat {
         if (!wasPlaying && playing) {
             enterPlayingState();
         } else if (wasPlaying && !playing) {
-//            exitPlayingState();
-            if(needUpdateNotification) {
-                exitPlayingState();
-                updateNotification();
-            }
+            exitPlayingState();
         }
 
-//        if(needUpdateNotification) {
-//            updateNotification();
-//        }
+        if(needUpdateNotification) {
+            updateNotification();
+        }
     }
 
     public int getPlaybackState() {
         switch (processingState) {
         case none: return PlaybackStateCompat.STATE_NONE;
         case connecting: return PlaybackStateCompat.STATE_CONNECTING;
+        case buffering: return PlaybackStateCompat.STATE_BUFFERING;
+        case ready: return playing ? PlaybackStateCompat.STATE_PLAYING : PlaybackStateCompat.STATE_PAUSED;
         case playing:return PlaybackStateCompat.STATE_PLAYING;
         case pause:return PlaybackStateCompat.STATE_PAUSED;
-        case ready: return playing ? PlaybackStateCompat.STATE_PLAYING : PlaybackStateCompat.STATE_PAUSED;
-        case buffering: return PlaybackStateCompat.STATE_BUFFERING;
         case fastForwarding: return PlaybackStateCompat.STATE_FAST_FORWARDING;
         case rewinding: return PlaybackStateCompat.STATE_REWINDING;
         case skippingToPrevious: return PlaybackStateCompat.STATE_SKIPPING_TO_PREVIOUS;
@@ -304,10 +300,7 @@ public class AudioService extends MediaBrowserServiceCompat {
                 builder.setLargeIcon(description.getIconBitmap());
         }
         if (androidNotificationClickStartsActivity)
-            //TODO xiong -- 补充：通知栏点击跳转界面
             builder.setContentIntent(mediaSession.getController().getSessionActivity());
-        if (notificationColor != null)
-            builder.setColor(notificationColor);
         for (NotificationCompat.Action action : actions) {
             builder.addAction(action);
         }
@@ -333,8 +326,9 @@ public class AudioService extends MediaBrowserServiceCompat {
                     .setSmallIcon(iconId)
                     .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
                     .setShowWhen(false)
-                    .setDeleteIntent(buildDeletePendingIntent())
-            ;
+                    .setDeleteIntent(buildDeletePendingIntent());
+            if (notificationColor != null)
+                notificationBuilder.setColor(notificationColor);
         }
         return notificationBuilder;
     }
@@ -401,11 +395,18 @@ public class AudioService extends MediaBrowserServiceCompat {
             wakeLock.release();
     }
 
-    static MediaMetadataCompat createMediaMetadata(String mediaId, String album, String title, String artist, String genre, Long duration, String artUri, Boolean playable, String displayTitle, String displaySubtitle, String displayDescription, RatingCompat rating, Map<?, ?> extras) {
+    static MediaMetadataCompat createMediaMetadata(String mediaId, String title, String displayTitle, String displaySubtitle, String displayDescription, String album, String artist, String genre, Long duration, String artUri, Boolean playable, RatingCompat rating, Map<?, ?> extras) {
         MediaMetadataCompat.Builder builder = new MediaMetadataCompat.Builder()
                 .putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, mediaId)
-                .putString(MediaMetadataCompat.METADATA_KEY_ALBUM, album)
                 .putString(MediaMetadataCompat.METADATA_KEY_TITLE, title);
+        if (displayTitle != null)
+            builder.putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, displayTitle);
+        if (displaySubtitle != null)
+            builder.putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE, displaySubtitle);
+        if (displayDescription != null)
+            builder.putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_DESCRIPTION, displayDescription);
+        if (album != null)
+            builder.putString(MediaMetadataCompat.METADATA_KEY_ALBUM, album);
         if (artist != null)
             builder.putString(MediaMetadataCompat.METADATA_KEY_ARTIST, artist);
         if (genre != null)
@@ -428,12 +429,6 @@ public class AudioService extends MediaBrowserServiceCompat {
         }
         if (playable != null)
             builder.putLong("playable_long", playable ? 1 : 0);
-        if (displayTitle != null)
-            builder.putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, displayTitle);
-        if (displaySubtitle != null)
-            builder.putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE, displaySubtitle);
-        if (displayDescription != null)
-            builder.putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_DESCRIPTION, displayDescription);
         if (rating != null) {
             builder.putRating(MediaMetadataCompat.METADATA_KEY_RATING, rating);
         }

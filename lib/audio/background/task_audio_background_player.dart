@@ -59,11 +59,6 @@ class AudioPlayerBackgroundTask extends BackgroundAudioTask<MediaItem> {
           _currentState = AudioProcessingState.ready;
           // 每500ms更新一次播放状态
           startQueryPosition(Duration(milliseconds: 800));
-
-          //TODO xiong -- test: 测试播放总长度是否会被 extras = null 覆盖
-          // _player.getDuration().then((value) =>
-          //     _broadcastPlayerState(extra: {EXTRA_PLAYER_DURATION : value.inSeconds})
-          // );
           break;
         case IjkStatus.playing:
           _currentState = AudioProcessingState.playing;
@@ -105,10 +100,10 @@ class AudioPlayerBackgroundTask extends BackgroundAudioTask<MediaItem> {
     Future<void> onSeekTo(Duration position) => _player.seekTo(position);
 
     @override
-    Future<void> onFastForward() => _seekRelative(fastForwardInterval);
+    Future<void> onFastForward(Duration? interval) => _seekRelative(interval ?? fastForwardInterval);
 
     @override
-    Future<void> onRewind() => _seekRelative(-rewindInterval);
+    Future<void> onRewind(Duration? interval) => _seekRelative(interval ?? -rewindInterval);
 
     @override
     Future<void> onSeekForward(bool begin) async => _seekContinuously(begin, 1);

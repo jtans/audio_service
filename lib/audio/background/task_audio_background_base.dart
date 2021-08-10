@@ -22,7 +22,7 @@ abstract class BackgroundAudioTask<T> {
   late Duration _rewindInterval;
 
   late T? mMediaItem;
-  late List<T>? mMediaQueue;
+  List<T> mMediaQueue = [];
   late IAudioMediaTypeConverter mMediaTypeConverter;
 
   /// Subclasses may supply a [cacheManager] to  manage the loading of artwork,
@@ -161,12 +161,12 @@ abstract class BackgroundAudioTask<T> {
   /// request to [AudioService.fastForward]. An implementation of this callback
   /// can use the [fastForwardInterval] property to determine how much audio
   /// to skip.
-  Future<void> onFastForward() async {}
+  Future<void> onFastForward(Duration? interval) async {}
 
   /// Called when a client has requested to rewind, such as via a request to
   /// [AudioService.rewind]. An implementation of this callback can use the
   /// [rewindInterval] property to determine how much audio to skip.
-  Future<void> onRewind() async {}
+  Future<void> onRewind(Duration? interval) async {}
 
   /// Called when a client has requested to skip to a specific item in the
   /// queue, such as via a call to [AudioService.skipToQueueItem].
@@ -240,11 +240,11 @@ abstract class BackgroundAudioTask<T> {
 
   Future<void> skip(int offset) async {
     if (mMediaItem == null) return;
-    int i = mMediaQueue?.indexOf(mMediaItem!) ?? 0;
+    int i = mMediaQueue.indexOf(mMediaItem!);
     if (i == -1) return;
     int newIndex = i + offset;
-    if (newIndex >= 0 && newIndex < mMediaQueue!.length)
-      await onSkipToQueueItem(getMediaId(mMediaQueue![newIndex]));
+    if (newIndex >= 0 && newIndex < mMediaQueue.length)
+      await onSkipToQueueItem(getMediaId(mMediaQueue[newIndex]));
   }
 
   String getMediaId(T mediaItem);

@@ -36,7 +36,7 @@ class AudioServiceControllerWrapper {
       _mAudioServiceController.currentMediaItemStream as Stream<MediaItem?>;
 
   ///自定义事件回调
-  Stream<dynamic> get customEventStream =>
+  Stream<dynamic>? get customEventStream =>
       AudioServiceController.customEventStream;
 
   ///通知栏点击事件

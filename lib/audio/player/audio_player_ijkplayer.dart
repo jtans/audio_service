@@ -43,17 +43,17 @@ class IjkAudioPlayer implements IAudioPlayer {
 
   @override
   Future<void> play() async {
-    mediaController.play();
+    await mediaController.play();
   }
 
   @override
   Future<void> pause() async {
-    mediaController.pause();
+    await mediaController.pause();
   }
 
   @override
-  void reset() {
-    mediaController.reset();
+  Future<void> reset() async {
+    await mediaController.reset();
   }
 
   @override

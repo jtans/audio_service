@@ -12,12 +12,12 @@ import 'package:flutter/services.dart';
 import 'package:flutter_isolate/flutter_isolate.dart';
 import 'package:rxdart/rxdart.dart';
 
-
 bool get testMode => !kIsWeb && Platform.environment['FLUTTER_TEST'] == 'true';
 
 const CUSTOM_PREFIX = "custom_";
 const CUSTOM_EVENT_PORT_NAME = 'customEventPort';
-const MethodChannel _channel = const MethodChannel('ryanheise.com/audioService');
+const MethodChannel _channel =
+    const MethodChannel('ryanheise.com/audioService');
 
 /// Client API to connect with and communciate with the background audio task.
 ///
@@ -39,8 +39,8 @@ const MethodChannel _channel = const MethodChannel('ryanheise.com/audioService')
 class AudioServiceController<T> {
   IAudioMediaTypeConverter mTypeConverter;
 
-  AudioServiceController({required IAudioMediaTypeConverter typeConverter}) :
-      mTypeConverter = typeConverter;
+  AudioServiceController({required IAudioMediaTypeConverter typeConverter})
+      : mTypeConverter = typeConverter;
 
   /// True if the background task runs in its own isolate, false if it doesn't.
   static bool get usesIsolate => !(kIsWeb || Platform.isMacOS) && !testMode;
@@ -80,13 +80,23 @@ class AudioServiceController<T> {
       _playbackStateSubject.nvalue ?? AudioServiceBackground.noneState;
 
   /// ------------------------- MediaItem Notify -------------------------///
-  final _currentMediaItemSubject = BehaviorSubject<T?>();
+  // final _currentMediaItemSubject = BehaviorSubject<T?>();
+  //
+  // /// A stream that broadcasts the current [MediaItem].
+  // ValueStream<T?> get currentMediaItemStream => _currentMediaItemSubject.stream;
+  //
+  // /// The current [MediaItem].
+  // T? get currentMediaItem => _currentMediaItemSubject.nvalue;
+
+  ///暴露到上层进行解析，方便拓展
+  final _currentMediaItemSubject = BehaviorSubject<Map?>();
 
   /// A stream that broadcasts the current [MediaItem].
-  ValueStream<T?> get currentMediaItemStream => _currentMediaItemSubject.stream;
+  ValueStream<Map?> get currentMediaItemStream =>
+      _currentMediaItemSubject.stream;
 
   /// The current [MediaItem].
-  T? get currentMediaItem => _currentMediaItemSubject.nvalue;
+  Map? get currentMediaItem => _currentMediaItemSubject.nvalue;
 
   /// ------------------------- MediaQueue Notify -------------------------///
   final _queueSubject = BehaviorSubject<List<T>?>();
@@ -109,17 +119,17 @@ class AudioServiceController<T> {
       _notificationSubject.nvalue ?? false;
 
   /// ----------------------- customEvent Notify -----------------------///
-  static final _customEventSubject = PublishSubject<dynamic>();
+  static PublishSubject<dynamic>? _customEventSubject;
 
   /// A stream that broadcasts custom events sent from the background.
-  static Stream<dynamic> get customEventStream => _customEventSubject.stream;
+  static Stream<dynamic>? get customEventStream => _customEventSubject?.stream;
 
   static void startedNonIsolate() {
     _startNonIsolateCompleter?.complete();
   }
 
   static void addCustomEvent(dynamic event) {
-    _customEventSubject.add(event);
+    _customEventSubject?.add(event);
   }
 
   /// A queue of tasks to be processed serially. Tasks that are processed on
@@ -178,9 +188,11 @@ class AudioServiceController<T> {
               ));
               break;
             case 'onMediaChanged':
-              _currentMediaItemSubject.add(call.arguments[0] != null
-                  ? mTypeConverter.convertRawMapToMediaItem(call.arguments[0])
-                  : null);
+              _currentMediaItemSubject.add(
+                  call.arguments[0] != null ? call.arguments[0] as Map : null);
+              // _currentMediaItemSubject.add(call.arguments[0] != null
+              //     ? mTypeConverter.convertRawMapToMediaItem(call.arguments[0])
+              //     : null);
               break;
             case 'onQueueChanged':
               final List<Map>? args = call.arguments[0] != null
@@ -202,7 +214,8 @@ class AudioServiceController<T> {
               _afterStop = true;
               break;
             case 'notificationClicked':
-              print("xiong -- MainActivity AudioService notificationClicked ${call.arguments[0]}");
+              print(
+                  "xiong -- MainActivity AudioService notificationClicked ${call.arguments[0]}");
               _notificationSubject.add(call.arguments[0]);
               break;
           }
@@ -213,10 +226,13 @@ class AudioServiceController<T> {
         } else {
           _channel.setMethodCallHandler(handler);
         }
+        if (_customEventSubject == null) {
+          _customEventSubject = PublishSubject<dynamic>();
+        }
         if (usesIsolate) {
           _customEventReceivePort = ReceivePort();
           _customEventSubscription = _customEventReceivePort!.listen((event) {
-            _customEventSubject.add(event);
+            _customEventSubject?.add(event);
           });
           IsolateNameServer.removePortNameMapping(CUSTOM_EVENT_PORT_NAME);
           IsolateNameServer.registerPortWithName(
@@ -245,6 +261,9 @@ class AudioServiceController<T> {
   Future<void> disconnect() => _asyncTaskQueue.schedule(() async {
         if (!_connected) return;
         _channel.setMethodCallHandler(null);
+        _currentMediaItemSubject.close();
+        _customEventSubject?.close();
+        _customEventSubject = null;
         _customEventSubscription?.cancel();
         _customEventSubscription = null;
         _customEventReceivePort = null;
@@ -319,24 +338,23 @@ class AudioServiceController<T> {
   /// This method waits for [BackgroundAudioTask.onStart] to complete, and
   /// completes with true if the task was successfully started, or false
   /// otherwise.
-  Future<bool> start({
-    required Function backgroundTask,
-    Map<String, dynamic>? params,
-    String androidNotificationChannelName = "Notifications",
-    String? androidNotificationChannelDescription,
-    int? androidNotificationColor,
-    String androidNotificationIcon = 'mipmap/ic_launcher',
-    bool androidShowNotificationBadge = false,
-    bool androidNotificationClickStartsActivity = true,
-    bool androidNotificationOngoing = false,
-    bool androidResumeOnClick = true,
-    bool androidStopForegroundOnPause = true,
-    bool androidEnableQueue = false,
-    Size? androidArtDownscaleSize,
-    Duration fastForwardInterval = const Duration(seconds: 10),
-    Duration rewindInterval = const Duration(seconds: 10),
-    String? clientPackageName
-  }) async {
+  Future<bool> start(
+      {required Function backgroundTask,
+      Map<String, dynamic>? params,
+      String androidNotificationChannelName = "Notifications",
+      String? androidNotificationChannelDescription,
+      int? androidNotificationColor,
+      String androidNotificationIcon = 'mipmap/ic_launcher',
+      bool androidShowNotificationBadge = false,
+      bool androidNotificationClickStartsActivity = true,
+      bool androidNotificationOngoing = false,
+      bool androidResumeOnClick = true,
+      bool androidStopForegroundOnPause = true,
+      bool androidEnableQueue = false,
+      Size? androidArtDownscaleSize,
+      Duration fastForwardInterval = const Duration(seconds: 10),
+      Duration rewindInterval = const Duration(seconds: 10),
+      String? clientPackageName}) async {
     assert(fastForwardInterval > Duration.zero,
         "fastForwardDuration must be positive");
     assert(rewindInterval > Duration.zero, "rewindInterval must be positive");
@@ -396,7 +414,7 @@ class AudioServiceController<T> {
             : null,
         'fastForwardInterval': fastForwardInterval.inMilliseconds,
         'rewindInterval': rewindInterval.inMilliseconds,
-        'clientPackageName' : clientPackageName ?? null
+        'clientPackageName': clientPackageName ?? null
       }))!;
       print("xiong -- AudioService start result = $success");
       if (!usesIsolate) {
@@ -423,7 +441,8 @@ class AudioServiceController<T> {
   /// queue. This passes through to the `onAddQueueItem` method in your
   /// background audio task.
   Future<void> addQueueItem(T mediaItem) async {
-    await _channel.invokeMethod('addQueueItem', mTypeConverter.mediaItemToJson(mediaItem));
+    await _channel.invokeMethod(
+        'addQueueItem', mTypeConverter.mediaItemToJson(mediaItem));
     // await _channel.invokeMethod('addQueueItem', mediaItem.toJson());
   }
 
@@ -431,14 +450,16 @@ class AudioServiceController<T> {
   /// at a particular position. This passes through to the `onAddQueueItemAt`
   /// method in your background audio task.
   Future<void> addQueueItemAt(T mediaItem, int index) async {
-    await _channel.invokeMethod('addQueueItemAt', [mTypeConverter.mediaItemToJson(mediaItem), index]);
+    await _channel.invokeMethod(
+        'addQueueItemAt', [mTypeConverter.mediaItemToJson(mediaItem), index]);
   }
 
   /// Sends a request to your background audio task to remove an item from the
   /// queue. This passes through to the `onRemoveQueueItem` method in your
   /// background audio task.
   Future<void> removeQueueItem(T mediaItem) async {
-    await _channel.invokeMethod('removeQueueItem', mTypeConverter.mediaItemToJson(mediaItem));
+    await _channel.invokeMethod(
+        'removeQueueItem', mTypeConverter.mediaItemToJson(mediaItem));
   }
 
   /// A convenience method calls [addQueueItem] for each media item in the
@@ -465,7 +486,8 @@ class AudioServiceController<T> {
   /// media item. This passes through to the 'onUpdateMediaItem' method in your
   /// background audio task.
   Future<void> updateMediaItem(T mediaItem) async {
-    await _channel.invokeMethod('updateMediaItem', mTypeConverter.mediaItemToJson(mediaItem));
+    await _channel.invokeMethod(
+        'updateMediaItem', mTypeConverter.mediaItemToJson(mediaItem));
   }
 
   /// Programmatically simulates a click of a media button on the headset.
@@ -509,7 +531,8 @@ class AudioServiceController<T> {
   /// item. This passes through to the 'onPlayMediaItem' method in your
   /// background audio task.
   Future<void> playMediaItem(T mediaItem) async {
-    await _channel.invokeMethod('playMediaItem', mTypeConverter.mediaItemToJson(mediaItem));
+    await _channel.invokeMethod(
+        'playMediaItem', mTypeConverter.mediaItemToJson(mediaItem));
   }
 
   //static Future<void> playFromSearch(String query, Bundle extras) async {}
@@ -564,15 +587,15 @@ class AudioServiceController<T> {
   /// Sends a request to your background audio task to fast forward by the
   /// interval passed into the [start] method. This passes through to the
   /// `onFastForward` method in your background audio task.
-  Future<void> fastForward() async {
-    await _channel.invokeMethod('fastForward');
+  Future<void> fastForward({int intervalInSeconds = 10}) async {
+    await _channel.invokeMethod('fastForward', intervalInSeconds);
   }
 
   /// Sends a request to your background audio task to rewind by the interval
   /// passed into the [start] method. This passes through to the `onRewind`
   /// method in the background audio task.
-  Future<void> rewind() async {
-    await _channel.invokeMethod('rewind');
+  Future<void> rewind({int intervalInSeconds = 10}) async {
+    await _channel.invokeMethod('rewind', intervalInSeconds);
   }
 
   //static Future<void> setCaptioningEnabled(boolean enabled) async {}
@@ -587,8 +610,7 @@ class AudioServiceController<T> {
   /// Sends a request to your background audio task to set the shuffle mode.
   /// This passes through to the `onSetShuffleMode` method in your background
   /// audio task.
-  Future<void> setShuffleMode(
-      AudioServiceShuffleMode shuffleMode) async {
+  Future<void> setShuffleMode(AudioServiceShuffleMode shuffleMode) async {
     await _channel.invokeMethod('setShuffleMode', shuffleMode.index);
   }
 
@@ -596,8 +618,7 @@ class AudioServiceController<T> {
   /// current media item. This passes through to the `onSetRating` method in
   /// your background audio task. The extras map must *only* contain primitive
   /// types!
-  Future<void> setRating(Rating rating,
-      [Map<String, dynamic>? extras]) async {
+  Future<void> setRating(Rating rating, [Map<String, dynamic>? extras]) async {
     await _channel.invokeMethod('setRating', {
       "rating": rating.toRaw(),
       "extras": extras,
