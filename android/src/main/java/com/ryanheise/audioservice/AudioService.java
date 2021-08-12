@@ -395,7 +395,7 @@ public class AudioService extends MediaBrowserServiceCompat {
             wakeLock.release();
     }
 
-    static MediaMetadataCompat createMediaMetadata(String mediaId, String title, String displayTitle, String displaySubtitle, String displayDescription, String album, String artist, String genre, Long duration, String artUri, Boolean playable, RatingCompat rating, Map<?, ?> extras) {
+    static MediaMetadataCompat createMediaMetadata(String mediaId, String title, String displayTitle, String displaySubtitle, String displayDescription, String displayIconUri, String album, String artist, String genre, Long duration, Boolean playable, RatingCompat rating, Map<?, ?> extras) {
         MediaMetadataCompat.Builder builder = new MediaMetadataCompat.Builder()
                 .putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, mediaId)
                 .putString(MediaMetadataCompat.METADATA_KEY_TITLE, title);
@@ -405,16 +405,8 @@ public class AudioService extends MediaBrowserServiceCompat {
             builder.putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE, displaySubtitle);
         if (displayDescription != null)
             builder.putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_DESCRIPTION, displayDescription);
-        if (album != null)
-            builder.putString(MediaMetadataCompat.METADATA_KEY_ALBUM, album);
-        if (artist != null)
-            builder.putString(MediaMetadataCompat.METADATA_KEY_ARTIST, artist);
-        if (genre != null)
-            builder.putString(MediaMetadataCompat.METADATA_KEY_GENRE, genre);
-        if (duration != null)
-            builder.putLong(MediaMetadataCompat.METADATA_KEY_DURATION, duration);
-        if (artUri != null) {
-            builder.putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI, artUri);
+        if (displayIconUri != null) {
+            builder.putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI, displayIconUri);
             String artCacheFilePath = null;
             if (extras != null) {
                 artCacheFilePath = (String)extras.get("artCacheFile");
@@ -427,6 +419,14 @@ public class AudioService extends MediaBrowserServiceCompat {
                 }
             }
         }
+        if (album != null)
+            builder.putString(MediaMetadataCompat.METADATA_KEY_ALBUM, album);
+        if (artist != null)
+            builder.putString(MediaMetadataCompat.METADATA_KEY_ARTIST, artist);
+        if (genre != null)
+            builder.putString(MediaMetadataCompat.METADATA_KEY_GENRE, genre);
+        if (duration != null)
+            builder.putLong(MediaMetadataCompat.METADATA_KEY_DURATION, duration);
         if (playable != null)
             builder.putLong("playable_long", playable ? 1 : 0);
         if (rating != null) {

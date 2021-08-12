@@ -155,7 +155,12 @@ class AudioServiceController<T> {
   /// Use [AudioServiceWidget] to handle this automatically.
   Future<void> connect({Function(bool)? onConnectCallback}) =>
       _asyncTaskQueue.schedule(() async {
-        if (_connected) return;
+        if (_connected) {
+          if (onConnectCallback != null) {
+            onConnectCallback(_connected);
+          }
+          return;
+        }
         final handler = (MethodCall call) async {
           switch (call.method) {
             case 'onChildrenLoaded':

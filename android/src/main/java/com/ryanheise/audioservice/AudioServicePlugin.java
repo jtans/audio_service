@@ -1039,7 +1039,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
         raw.put("album", metadataToString(mediaMetadata, MediaMetadataCompat.METADATA_KEY_ALBUM));
         raw.put("title", metadataToString(mediaMetadata, MediaMetadataCompat.METADATA_KEY_TITLE));
         if (description.getIconUri() != null)
-            raw.put("artUri", description.getIconUri().toString());
+            raw.put("displayIconUri", description.getIconUri().toString());
         raw.put("artist", metadataToString(mediaMetadata, MediaMetadataCompat.METADATA_KEY_ARTIST));
         raw.put("genre", metadataToString(mediaMetadata, MediaMetadataCompat.METADATA_KEY_GENRE));
         if (mediaMetadata.containsKey(MediaMetadataCompat.METADATA_KEY_DURATION))
@@ -1080,11 +1080,11 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
                 (String)rawMediaItem.get("displayTitle"),
                 (String)rawMediaItem.get("displaySubtitle"),
                 (String)rawMediaItem.get("displayDescription"),
+                (String)rawMediaItem.get("displayIconUri"),
                 (String)rawMediaItem.get("album"),
                 (String)rawMediaItem.get("artist"),
                 (String)rawMediaItem.get("genre"),
                 getLong(rawMediaItem.get("duration")),
-                (String)rawMediaItem.get("artUri"),
                 (Boolean)rawMediaItem.get("playable"),
                 raw2rating((Map<String, Object>)rawMediaItem.get("rating")),
                 (Map<?, ?>)rawMediaItem.get("extras")
