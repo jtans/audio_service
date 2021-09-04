@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:audio_service/audio/converter/audio_media_type_converter.dart';
 import 'package:audio_service/audio/player/audio_player_ijkplayer.dart';
 import 'package:audio_session/audio_session.dart';
-import 'package:flutter_ijkplayer/flutter_ijkplayer.dart';
+import 'package:fijkplayer/fijkplayer.dart';
 
 import 'audio_service_background.dart';
 import 'task_audio_background_base.dart';
@@ -22,13 +22,13 @@ class AudioPlayerBackgroundTask extends BackgroundAudioTask<MediaItem> {
     mMediaTypeConverter = AudioMediaTypeConverter();
   }
 
-  IjkAudioPlayer _player = IjkAudioPlayer(IjkMediaController());
+  IjkAudioPlayer _player = IjkAudioPlayer(FKIjkPlayer());
 
   AudioProcessingState? _currentState = AudioProcessingState.none;
   Seeker? _seeker;
   Timer? _positionTimer;
-  late StreamSubscription<VideoInfo>? _audioInfoSubscription;
-  late StreamSubscription<IjkStatus>? _audioStatusSubscription;
+  late StreamSubscription? _audioInfoSubscription;
+  late StreamSubscription? _audioStatusSubscription;
 
   int index = 0;
   // late List<MediaItem>? queue;
@@ -52,27 +52,27 @@ class AudioPlayerBackgroundTask extends BackgroundAudioTask<MediaItem> {
     //音频播放状态
     _audioStatusSubscription = _player.statusStream?.listen((event) {
       switch (event) {
-        case IjkStatus.preparing:
+        case FKijkState.asyncPreparing:
           _currentState = AudioProcessingState.buffering;
           break;
-        case IjkStatus.prepared:
+        case FKijkState.prepared:
           _currentState = AudioProcessingState.ready;
           // 每500ms更新一次播放状态
           startQueryPosition(Duration(milliseconds: 800));
           break;
-        case IjkStatus.playing:
+        case FKijkState.started:
           _currentState = AudioProcessingState.playing;
           break;
-        case IjkStatus.pause:
+        case FKijkState.paused:
           _currentState = AudioProcessingState.pause;
           break;
-        case IjkStatus.complete:
+        case FKijkState.completed:
           _currentState = AudioProcessingState.completed;
           break;
-        case IjkStatus.disposed:
+        case FKijkState.stopped:
           _currentState = AudioProcessingState.stopped;
           break;
-        case IjkStatus.error:
+        case FKijkState.error:
           _currentState = AudioProcessingState.error;
           break;
         default:
@@ -185,7 +185,7 @@ class AudioPlayerBackgroundTask extends BackgroundAudioTask<MediaItem> {
     void startQueryPosition(Duration step) {
       _positionTimer = Timer.periodic(step, (timer) {
         // print("xiong -- timer call _broadcastPlayerState");
-        _player.mediaController.refreshVideoInfo();
+        _player.getVideoInfo();
         // _player.getDuration().then((value) {
         // print("xiong -- timer call _broadcastPlayerState duration = $value");
         // _broadcastPlayerState(info: _player.mediaController.videoInfo,
