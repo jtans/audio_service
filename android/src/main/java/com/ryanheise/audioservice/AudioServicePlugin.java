@@ -134,7 +134,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
         }
     }
 
-    private FlutterPluginBinding flutterPluginBinding;
+    private static FlutterPluginBinding flutterPluginBinding;
     private ActivityPluginBinding activityPluginBinding;
     private NewIntentListener newIntentListener;
     private ClientHandler clientHandler; // v2 only
@@ -357,7 +357,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
                         break;
                     }
                     Map<?, ?> arguments = (Map<?, ?>)call.arguments;
-                    final long callbackHandle = getLong(arguments.get("callbackHandle"));
+                    final long callbackHandle = arguments.get("callbackHandle") == null ? 0 : getLong(arguments.get("callbackHandle"));
                     params = (Map<String, Object>)arguments.get("params");
                     boolean androidNotificationClickStartsActivity = (Boolean)arguments.get("androidNotificationClickStartsActivity");
                     boolean androidNotificationOngoing = (Boolean)arguments.get("androidNotificationOngoing");
@@ -602,14 +602,6 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
         }
     }
 
-    public static void loadAudioPlayPage() {
-        //适用于Application重启后重新加载的情况
-        if (backgroundFlutterEngine != null) {
-            backgroundFlutterEngine.getDartExecutor().executeDartEntrypoint(
-                    new DartExecutor.DartEntrypoint(backgroundHandler.appBundlePath, "openAudioPage"));
-        }
-    }
-
     private static class BackgroundHandler implements MethodCallHandler, AudioService.ServiceListener {
         private long callbackHandle;
         private String appBundlePath;
@@ -631,26 +623,36 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
             channel.setMethodCallHandler(this);
         }
 
+        public boolean isMultiIsolateMode() {
+            return callbackHandle != 0;
+        }
+
         public void initEngine() {
             Context context = AudioService.instance;
-            backgroundFlutterEngine = new FlutterEngine(context.getApplicationContext());
-            FlutterCallbackInformation cb = FlutterCallbackInformation.lookupCallbackInformation(callbackHandle);
-            if (cb == null || appBundlePath == null) {
-                sendStartResult(false);
-                return;
-            }
-            if (enableQueue)
-                AudioService.instance.enableQueue();
+            if (enableQueue) AudioService.instance.enableQueue();
+
+            backgroundFlutterEngine = isMultiIsolateMode() ? new FlutterEngine(context.getApplicationContext()) : flutterPluginBinding.getFlutterEngine();
             // Register plugins in background isolate if app is using v1 embedding
             if (pluginRegistrantCallback != null) {
                 pluginRegistrantCallback.registerWith(new ShimPluginRegistry(backgroundFlutterEngine));
             }
 
-            DartExecutor executor = backgroundFlutterEngine.getDartExecutor();
-            init(executor);
-            DartCallback dartCallback = new DartCallback(context.getAssets(), appBundlePath, cb);
+            if (isMultiIsolateMode()) { //多Isolate
+                FlutterCallbackInformation cb = FlutterCallbackInformation.lookupCallbackInformation(callbackHandle);
+                if (cb == null || appBundlePath == null) {
+                    sendStartResult(false);
+                    return;
+                }
+                DartExecutor executor = backgroundFlutterEngine.getDartExecutor();
+                init(executor);
+                DartCallback dartCallback = new DartCallback(context.getAssets(), appBundlePath, cb);
 
-            executor.executeDartCallback(dartCallback);
+                executor.executeDartCallback(dartCallback);
+            } else {  //使用默认的FlutterEngine
+                DartExecutor executor = backgroundFlutterEngine.getDartExecutor();
+                init(executor);
+                sendStartResult(true);
+            }
         }
 
         @Override
@@ -820,7 +822,9 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
                 result.success(startParams);
                 break;
             case "started":
-                sendStartResult(true);
+                if (isMultiIsolateMode()) {
+                    sendStartResult(true);
+                }
                 // If the client subscribed to browse children before we
                 // started, process the pending request.
                 // TODO: It should be possible to browse children before
@@ -945,8 +949,10 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
             for (ClientHandler eachClientHandler : clientHandlers) {
                 eachClientHandler.invokeMethod("onStopped");
             }
-            backgroundFlutterEngine.destroy();
-            backgroundFlutterEngine = null;
+            if (isMultiIsolateMode()) {
+                backgroundFlutterEngine.destroy();
+                backgroundFlutterEngine = null;
+            }
             backgroundHandler = null;
         }
     }

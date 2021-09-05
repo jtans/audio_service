@@ -450,8 +450,7 @@ class AudioPlayerWidget extends StatelessWidget {
   ElevatedButton audioPlayerButton() => startButton(
         'AudioPlayer',
         () {
-          AudioServiceControllerWrapper()
-              .start(
+          AudioServiceControllerWrapper().start(
             backgroundTask: _audioPlayerTaskEntryPoint,
             androidNotificationChannelName: 'Audio Service Demo',
             // Enable this if you want the Android service to exit the foreground state on pause.
@@ -511,10 +510,10 @@ void _audioPlayerTaskEntryPoint() async {
 /// A stream reporting the combined state of the current queue and the current
 /// media item within that queue.
 Stream<QueueState> get _queueStateStream =>
-    Rx.combineLatest2<List<MediaItem>?, MediaItem?, QueueState>(
+    Rx.combineLatest2<List<MediaItem>?, Map?, QueueState>(
         AudioServiceControllerWrapper().queueStream,
         AudioServiceControllerWrapper().currentMediaItemStream,
-        (queue, mediaItem) => QueueState(queue, mediaItem));
+        (queue, mediaItemMap) => QueueState(queue, MediaItem(id: mediaItemMap!['id'], title: mediaItemMap['title'], album: mediaItemMap['displayTitle'])));
 
 class SeekBar extends StatefulWidget {
   final Duration duration;

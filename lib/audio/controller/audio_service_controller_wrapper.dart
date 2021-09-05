@@ -31,9 +31,15 @@ class AudioServiceControllerWrapper {
   Stream<List<MediaItem>?> get queueStream =>
       _mAudioServiceController.queueStream as Stream<List<MediaItem>?>;
 
-  ///当前播放的媒体文件
-  Stream<MediaItem?> get currentMediaItemStream =>
-      _mAudioServiceController.currentMediaItemStream as Stream<MediaItem?>;
+  ///当前播放MediaItem回调
+  ///Map必传参数如下：
+  ///[id] -- Media Id
+  ///[title] -- Media Title
+  ///[displayTitle] -- Media displayTitle 通知栏显示的主标题
+  ///[displaySubtitle] -- Media displaySubtitle 通知栏显示的副标题
+  ///[displayIconUri] -- Media displayIconUri 媒体展示图片Uri
+  Stream<Map?> get currentMediaItemStream =>
+      _mAudioServiceController.currentMediaItemStream;
 
   ///自定义事件回调
   Stream<dynamic>? get customEventStream =>

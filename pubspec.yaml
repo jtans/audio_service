@@ -12,11 +12,12 @@ dependencies:
   rxdart: '>=0.26.0 <0.28.0'
   flutter_isolate: ^2.0.0
   flutter_cache_manager: ^3.0.0
-  flutter_ijkplayer:
-    #path: /Users/ts/Documents/flutter/project/flutter_ijkplayer
-    git:
-      url: https://github.com/jtans/flutter_ijkplayer.git
-      ref: nullsafety
+#  flutter_ijkplayer:
+#    #path: /Users/ts/Documents/flutter/project/flutter_ijkplayer
+#    git:
+#      url: https://github.com/jtans/flutter_ijkplayer.git
+#      ref: nullsafety
+  fijkplayer: ^0.10.0
   js: ^0.6.3
   flutter:
     sdk: flutter
