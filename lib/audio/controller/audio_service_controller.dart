@@ -43,7 +43,7 @@ class AudioServiceController<T> {
   AudioServiceController({required IAudioMediaTypeConverter typeConverter})
       : mTypeConverter = typeConverter;
 
-  static bool needIsolateForAndroid = false;
+  static bool needIsolateForAndroid = true;
 
   /// True if the background task runs in its own isolate, false if it doesn't.
   static bool get usesIsolate => !(kIsWeb || Platform.isMacOS) && needIsolateForAndroid;
@@ -213,13 +213,12 @@ class AudioServiceController<T> {
                   : null);
               break;
             case 'onStopped':
+              _runningSubject.add(false);
               _browseMediaChildrenSubject.add(null);
               _playbackStateSubject.add(AudioServiceBackground.noneState);
-              // _playbackStateSubject.add(AudioServiceBackground.noneState);
-              _currentMediaItemSubject.add(null);
               _queueSubject.add(null);
               _notificationSubject.add(false);
-              _runningSubject.add(false);
+              _currentMediaItemSubject.add(null);
               _afterStop = true;
               break;
             case 'notificationClicked':
@@ -270,7 +269,6 @@ class AudioServiceController<T> {
   Future<void> disconnect() => _asyncTaskQueue.schedule(() async {
         if (!_connected) return;
         _channel.setMethodCallHandler(null);
-        _currentMediaItemSubject.close();
         _customEventSubject?.close();
         _customEventSubject = null;
         _customEventSubscription?.cancel();

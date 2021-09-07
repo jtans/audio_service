@@ -129,8 +129,8 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
      * 暴露通知点击事件处理接口到外层
      */
     public static void handleNotificationClick(Activity activity) {
-        if (mainClientHandler != null && mainClientHandler.channel != null) {
-            mainClientHandler.channel.invokeMethod("notificationClicked", true);
+        for (ClientHandler eachClientHandler : clientHandlers) {
+            eachClientHandler.invokeMethod("notificationClicked", true);
         }
     }
 

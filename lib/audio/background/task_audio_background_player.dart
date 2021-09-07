@@ -133,39 +133,14 @@ class AudioPlayerBackgroundTask extends BackgroundAudioTask<MediaItem> {
         String mp3_2 = arguments[1];
         print("xiong -- onCustomAction: CUSTOM_CMD_ADD_MP3_RES args = $arguments, param1 = $mp3_1, param2 = $mp3_2");
         // List<String> ids = arguments as List<String>;
-        await _player.setNetworkDataSource(mp3_1);
+        if (_currentState == AudioProcessingState.pause) {
+          _player.play();
+        } else if (_currentState == AudioProcessingState.playing) {
 
-        onPlay();
-
-//        queue = arguments as List<MediaItem>;
-//        if (queue == null || index >= queue!.length) {
-//          return;
-//        }
-//        mMediaItem = queue![index];
-//        // Load and broadcast the queue
-//        await AudioServiceBackground.setQueue(queue!);
-//        await AudioServiceBackground.setMediaItem(mMediaItem);
-//        try {
-//          _player.setNetworkDataSource(mMediaItem.id);
-//          onPlay();
-//        } catch (e) {
-//          print("Error: $e");
-//          onStop();
-//        }
-
-//        // Load and broadcast the queue
-//        AudioServiceBackground.setQueue(queue);
-//        try {
-//          await _player.setAudioSource(ConcatenatingAudioSource(
-//            children:
-//            queue.map((item) => AudioSource.uri(Uri.parse(item.id))).toList(),
-//          ));
-//          // In this example, we automatically start playing on start.
-//          onPlay();
-//        } catch (e) {
-//          print("Error: $e");
-//          onStop();
-//        }
+        } else {
+          await _player.setNetworkDataSource(mp3_1);
+          onPlay();
+        }
         break;
     }
   }
@@ -176,7 +151,7 @@ class AudioPlayerBackgroundTask extends BackgroundAudioTask<MediaItem> {
     _audioInfoSubscription?.cancel();
     _audioStatusSubscription?.cancel();
     _positionTimer?.cancel();
-    await _broadcastPlayerState(needUpdateNotification: true);
+
     // Shut down this audio.task
     await super.onStop();
   }
