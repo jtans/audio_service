@@ -116,9 +116,7 @@ class FKIjkPlayer {
     _streamSubscriptionCurrentPosUpdate =
         mediaController.onCurrentPosUpdate.listen((event) {
           currentPosition = event;
-          getVideoInfo().then((value) {
-            _streamControllerVideoInfo.add(value);
-          });
+          getVideoInfo();
           _streamControllerPlaying.add(mediaController.state == FijkState.started);
         });
   }
@@ -142,6 +140,8 @@ class FKIjkPlayer {
     ijkValue = value;
     _streamControllerStatus.add(ijkValue.state.toFKijkState);
     _streamControllerPlaying.add(ijkValue.state == FijkState.started);
+
+    getVideoInfo();
   }
 
   Future<void> seekToProgress(double progress) async {
@@ -219,6 +219,7 @@ class FKIjkPlayer {
       "tcpSpeed": 0
     });
     videoInfo = info;
+    _streamControllerVideoInfo.add(info);
     return info;
   }
 }
