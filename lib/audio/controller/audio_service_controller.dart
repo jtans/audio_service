@@ -123,17 +123,17 @@ class AudioServiceController<T> {
       _notificationSubject.nvalue ?? false;
 
   /// ----------------------- customEvent Notify -----------------------///
-  static PublishSubject<dynamic>? _customEventSubject;
+  static PublishSubject<dynamic> _customEventSubject = PublishSubject<dynamic>();
 
   /// A stream that broadcasts custom events sent from the background.
-  static Stream<dynamic>? get customEventStream => _customEventSubject?.stream;
+  static Stream<dynamic>? get customEventStream => _customEventSubject.stream;
 
   static void startedNonIsolate() {
     _startNonIsolateCompleter?.complete();
   }
 
   static void addCustomEvent(dynamic event) {
-    _customEventSubject?.add(event);
+    _customEventSubject.add(event);
   }
 
   /// A queue of tasks to be processed serially. Tasks that are processed on
@@ -234,13 +234,10 @@ class AudioServiceController<T> {
         } else {
           _channel.setMethodCallHandler(handler);
         }
-        if (_customEventSubject == null) {
-          _customEventSubject = PublishSubject<dynamic>();
-        }
         if (usesIsolate) {
           _customEventReceivePort = ReceivePort();
           _customEventSubscription = _customEventReceivePort!.listen((event) {
-            _customEventSubject?.add(event);
+            _customEventSubject.add(event);
           });
           IsolateNameServer.removePortNameMapping(CUSTOM_EVENT_PORT_NAME);
           IsolateNameServer.registerPortWithName(
@@ -269,8 +266,6 @@ class AudioServiceController<T> {
   Future<void> disconnect() => _asyncTaskQueue.schedule(() async {
         if (!_connected) return;
         _channel.setMethodCallHandler(null);
-        _customEventSubject?.close();
-        _customEventSubject = null;
         _customEventSubscription?.cancel();
         _customEventSubscription = null;
         _customEventReceivePort = null;
