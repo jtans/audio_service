@@ -97,15 +97,17 @@ class FKIjkPlayer {
   VideoInfo? videoInfo;
 
   StreamController<VideoInfo> _streamControllerVideoInfo =
-      StreamController.broadcast();
+
+  StreamController.broadcast();
   Stream<VideoInfo>? get videoInfoStream => _streamControllerVideoInfo.stream;
 
   StreamController<bool> _streamControllerPlaying =
-      StreamController.broadcast();
+  StreamController.broadcast();
   Stream<bool>? get playingStream => _streamControllerPlaying.stream;
 
   StreamController<FKijkState> _streamControllerStatus =
-      StreamController.broadcast();
+  StreamController.broadcast();
+
   Stream<FKijkState>? get statusStream => _streamControllerStatus.stream;
   StreamSubscription? _streamSubscriptionCurrentPosUpdate;
 
@@ -121,6 +123,7 @@ class FKIjkPlayer {
       });
       _streamControllerPlaying.add(mediaController.state == FijkState.started);
     });
+
   }
 
   void dispose() {
@@ -142,6 +145,8 @@ class FKIjkPlayer {
     ijkValue = value;
     _streamControllerStatus.add(ijkValue.state.toFKijkState);
     _streamControllerPlaying.add(ijkValue.state == FijkState.started);
+
+    getVideoInfo();
   }
 
   Future<void> seekToProgress(double progress) async {
@@ -219,6 +224,7 @@ class FKIjkPlayer {
       "tcpSpeed": 0
     });
     videoInfo = info;
+    _streamControllerVideoInfo.add(info);
     return info;
   }
 }
@@ -384,3 +390,4 @@ class VideoInfo {
     return json.encode(_map);
   }
 }
+

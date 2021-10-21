@@ -12,7 +12,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_isolate/flutter_isolate.dart';
 import 'package:rxdart/rxdart.dart';
 
-bool get testMode => !kIsWeb && Platform.environment['FLUTTER_TEST'] == 'true';
+bool get testMode => false;
+// bool get testMode => !kIsWeb && Platform.environment['FLUTTER_TEST'] == 'true';
 
 const CUSTOM_PREFIX = "custom_";
 const CUSTOM_EVENT_PORT_NAME = 'customEventPort';
@@ -42,8 +43,11 @@ class AudioServiceController<T> {
   AudioServiceController({required IAudioMediaTypeConverter typeConverter})
       : mTypeConverter = typeConverter;
 
+  static bool needIsolateForAndroid = true;
+
   /// True if the background task runs in its own isolate, false if it doesn't.
-  static bool get usesIsolate => !(kIsWeb || Platform.isMacOS) && !testMode;
+  static bool get usesIsolate => !(kIsWeb || Platform.isMacOS) && needIsolateForAndroid;
+  // static bool get usesIsolate => !(kIsWeb || Platform.isMacOS) && !testMode;
 
   /// If a seek is in progress, this holds the position we are seeking to.
   static Duration? _seekPos;
@@ -119,17 +123,17 @@ class AudioServiceController<T> {
       _notificationSubject.nvalue ?? false;
 
   /// ----------------------- customEvent Notify -----------------------///
-  static PublishSubject<dynamic>? _customEventSubject;
+  static PublishSubject<dynamic> _customEventSubject = PublishSubject<dynamic>();
 
   /// A stream that broadcasts custom events sent from the background.
-  static Stream<dynamic>? get customEventStream => _customEventSubject?.stream;
+  static Stream<dynamic>? get customEventStream => _customEventSubject.stream;
 
   static void startedNonIsolate() {
     _startNonIsolateCompleter?.complete();
   }
 
   static void addCustomEvent(dynamic event) {
-    _customEventSubject?.add(event);
+    _customEventSubject.add(event);
   }
 
   /// A queue of tasks to be processed serially. Tasks that are processed on
@@ -209,13 +213,12 @@ class AudioServiceController<T> {
                   : null);
               break;
             case 'onStopped':
+              _runningSubject.add(false);
               _browseMediaChildrenSubject.add(null);
               _playbackStateSubject.add(AudioServiceBackground.noneState);
-              // _playbackStateSubject.add(AudioServiceBackground.noneState);
-              _currentMediaItemSubject.add(null);
               _queueSubject.add(null);
               _notificationSubject.add(false);
-              _runningSubject.add(false);
+              _currentMediaItemSubject.add(null);
               _afterStop = true;
               break;
             case 'notificationClicked':
@@ -231,13 +234,10 @@ class AudioServiceController<T> {
         } else {
           _channel.setMethodCallHandler(handler);
         }
-        if (_customEventSubject == null) {
-          _customEventSubject = PublishSubject<dynamic>();
-        }
         if (usesIsolate) {
           _customEventReceivePort = ReceivePort();
           _customEventSubscription = _customEventReceivePort!.listen((event) {
-            _customEventSubject?.add(event);
+            _customEventSubject.add(event);
           });
           IsolateNameServer.removePortNameMapping(CUSTOM_EVENT_PORT_NAME);
           IsolateNameServer.registerPortWithName(
@@ -266,9 +266,6 @@ class AudioServiceController<T> {
   Future<void> disconnect() => _asyncTaskQueue.schedule(() async {
         if (!_connected) return;
         _channel.setMethodCallHandler(null);
-        _currentMediaItemSubject.close();
-        _customEventSubject?.close();
-        _customEventSubject = null;
         _customEventSubscription?.cancel();
         _customEventSubscription = null;
         _customEventReceivePort = null;
@@ -365,14 +362,14 @@ class AudioServiceController<T> {
     assert(rewindInterval > Duration.zero, "rewindInterval must be positive");
 
     print("xiong -- StartService usesIsolate=$usesIsolate, params=$params"
-        ", androidNotificationChannelDescription=$androidNotificationChannelDescription"
-        ", androidArtDownscaleSize=$androidArtDownscaleSize");
+        ", androidNotificationChannelDescription=$androidNotificationChannelDescription");
 
     return await _asyncTaskQueue.schedule(() async {
       if (!_connected) throw Exception("Not connected");
       if (running) return false;
       _runningSubject.add(true);
       _afterStop = false;
+
       ui.CallbackHandle? handle;
       if (usesIsolate) {
         handle = ui.PluginUtilities.getCallbackHandle(backgroundTask);
@@ -396,6 +393,7 @@ class AudioServiceController<T> {
         // regular isolates to use method channels.
         await FlutterIsolate.spawn(_iosIsolateEntryPoint, callbackHandle!);
       }
+
       final success = (await _channel.invokeMethod<bool>('start', {
         'callbackHandle': callbackHandle,
         'params': params ?? null,

@@ -3,7 +3,6 @@ import 'package:audio_service/audio/converter/audio_media_type_converter.dart';
 import 'package:audio_service/audio/player/audio_player_ijkplayer.dart';
 import 'package:audio_session/audio_session.dart';
 import 'package:fijkplayer/fijkplayer.dart';
-
 import 'audio_service_background.dart';
 import 'task_audio_background_base.dart';
 import 'package:audio_service/audio/media/audio_media_resource.dart';
@@ -96,92 +95,67 @@ class AudioPlayerBackgroundTask extends BackgroundAudioTask<MediaItem> {
     _broadcastPlayerState(info: _player.mediaController.videoInfo, extra: Map(), needUpdateNotification: true);
   }
 
-    @override
-    Future<void> onSeekTo(Duration position) => _player.seekTo(position);
+  @override
+  Future<void> onSeekTo(Duration position) => _player.seekTo(position);
 
-    @override
-    Future<void> onFastForward(Duration? interval) => _seekRelative(interval ?? fastForwardInterval);
+  @override
+  Future<void> onFastForward(Duration? interval) => _seekRelative(interval ?? fastForwardInterval);
 
-    @override
-    Future<void> onRewind(Duration? interval) => _seekRelative(interval ?? -rewindInterval);
+  @override
+  Future<void> onRewind(Duration? interval) => _seekRelative(interval ?? -rewindInterval);
 
-    @override
-    Future<void> onSeekForward(bool begin) async => _seekContinuously(begin, 1);
+  @override
+  Future<void> onSeekForward(bool begin) async => _seekContinuously(begin, 1);
 
-    @override
-    Future<void> onSeekBackward(bool begin) async => _seekContinuously(begin, -1);
+  @override
+  Future<void> onSeekBackward(bool begin) async => _seekContinuously(begin, -1);
 
-    @override
-    Future<void> onSkipToPrevious() async {
-      return skip(-1);
-    }
+  @override
+  Future<void> onSkipToPrevious() async {
+    return skip(-1);
+  }
 
-    @override
-    Future<void> onSkipToNext() async {
-      return skip(1);
-    }
+  @override
+  Future<void> onSkipToNext() async {
+    return skip(1);
+  }
 
-    @override
-    Future<void> onSkipToQueueItem(String mediaId) async {
-      ///TODO xiong -- 补充：跳转播放对应的媒体资源
-    }
+  @override
+  Future<void> onSkipToQueueItem(String mediaId) async {
+    ///TODO xiong -- 补充：跳转播放对应的媒体资源
+  }
 
-    @override
-    Future<dynamic> onCustomAction(String name, dynamic arguments) async {
-      switch(name) {
-        case CUSTOM_CMD_ADD_MP3_RES:
-          String mp3_1 = arguments[0];
-          String mp3_2 = arguments[1];
-          print("xiong -- onCustomAction: CUSTOM_CMD_ADD_MP3_RES args = $arguments, param1 = $mp3_1, param2 = $mp3_2");
-          // List<String> ids = arguments as List<String>;
+  @override
+  Future<dynamic> onCustomAction(String name, dynamic arguments) async {
+    switch(name) {
+      case CUSTOM_CMD_ADD_MP3_RES:
+        String mp3_1 = arguments[0];
+        String mp3_2 = arguments[1];
+        print("xiong -- onCustomAction: CUSTOM_CMD_ADD_MP3_RES args = $arguments, param1 = $mp3_1, param2 = $mp3_2");
+        // List<String> ids = arguments as List<String>;
+        if (_currentState == AudioProcessingState.pause) {
+          _player.play();
+        } else if (_currentState == AudioProcessingState.playing) {
+
+        } else {
           await _player.setNetworkDataSource(mp3_1);
-
           onPlay();
-
-//        queue = arguments as List<MediaItem>;
-//        if (queue == null || index >= queue!.length) {
-//          return;
-//        }
-//        mMediaItem = queue![index];
-//        // Load and broadcast the queue
-//        await AudioServiceBackground.setQueue(queue!);
-//        await AudioServiceBackground.setMediaItem(mMediaItem);
-//        try {
-//          _player.setNetworkDataSource(mMediaItem.id);
-//          onPlay();
-//        } catch (e) {
-//          print("Error: $e");
-//          onStop();
-//        }
-
-//        // Load and broadcast the queue
-//        AudioServiceBackground.setQueue(queue);
-//        try {
-//          await _player.setAudioSource(ConcatenatingAudioSource(
-//            children:
-//            queue.map((item) => AudioSource.uri(Uri.parse(item.id))).toList(),
-//          ));
-//          // In this example, we automatically start playing on start.
-//          onPlay();
-//        } catch (e) {
-//          print("Error: $e");
-//          onStop();
-//        }
-          break;
-      }
+        }
+        break;
     }
+  }
 
-    @override
-    Future<void> onStop() async {
-      await _player.stop();
-      _audioInfoSubscription?.cancel();
-      _audioStatusSubscription?.cancel();
-      _positionTimer?.cancel();
-      await _broadcastPlayerState(needUpdateNotification: true);
-      // Shut down this audio.task
-      await super.onStop();
-    }
+  @override
+  Future<void> onStop() async {
+    await _player.stop();
+    _audioInfoSubscription?.cancel();
+    _audioStatusSubscription?.cancel();
+    _positionTimer?.cancel();
 
+    // Shut down this audio.task
+    await super.onStop();
+  }
+  
     void startQueryPosition(Duration step) {
       _positionTimer = Timer.periodic(step, (timer) {
         // print("xiong -- timer call _broadcastPlayerState");
@@ -195,60 +169,60 @@ class AudioPlayerBackgroundTask extends BackgroundAudioTask<MediaItem> {
       });
     }
 
-    /// Jumps away from the current position by [offset].
-    Future<void> _seekRelative(Duration offset) async {
-      var currPos = await _player.getCurrentPosition();
-      var newPosition = currPos + offset;
-      // Make sure we don't jump out of bounds.
-      if (newPosition < Duration.zero) newPosition = Duration.zero;
-      if (newPosition > mMediaItem!.duration!) newPosition = mMediaItem!.duration!;
-      // Perform the jump via a seek.
-      await _player.seekTo(newPosition);
-    }
+  /// Jumps away from the current position by [offset].
+  Future<void> _seekRelative(Duration offset) async {
+    var currPos = await _player.getCurrentPosition();
+    var newPosition = currPos + offset;
+    // Make sure we don't jump out of bounds.
+    if (newPosition < Duration.zero) newPosition = Duration.zero;
+    if (newPosition > mMediaItem!.duration!) newPosition = mMediaItem!.duration!;
+    // Perform the jump via a seek.
+    await _player.seekTo(newPosition);
+  }
 
-    /// Begins or stops a continuous seek in [direction]. After it begins it will
-    /// continue seeking forward or backward by 10 seconds within the audio, at
-    /// intervals of 1 second in app time.
-    void _seekContinuously(bool begin, int direction) {
-      _seeker?.stop();
-      if (begin) {
-        _seeker = Seeker(_player, Duration(seconds: 10 * direction),
-            Duration(seconds: 1), mMediaItem!)
-          ..start();
-      }
+  /// Begins or stops a continuous seek in [direction]. After it begins it will
+  /// continue seeking forward or backward by 10 seconds within the audio, at
+  /// intervals of 1 second in app time.
+  void _seekContinuously(bool begin, int direction) {
+    _seeker?.stop();
+    if (begin) {
+      _seeker = Seeker(_player, Duration(seconds: 10 * direction),
+          Duration(seconds: 1), mMediaItem!)
+        ..start();
     }
+  }
 
-    /// Broadcasts the current state to all clients.
-    /// [extra] -- 需额外传输的数据（TODO xiong -- fix: extra为空的话接收端会接收失败）
-    Future<void> _broadcastPlayerState({VideoInfo? info, Map<String, dynamic>? extra, required bool needUpdateNotification}) async {
-      await AudioServiceBackground().setPlaybackState(
-        controls: [
-          MediaControl.skipToPrevious,
-          if (_player.isPlaying()) MediaControl.pause else MediaControl.play,
-          MediaControl.stop,
-          MediaControl.skipToNext,
-        ],
-        // systemActions: [
-        //   MediaAction.seekTo,
-        //   MediaAction.seekForward,
-        //   MediaAction.seekBackward,
-        // ],
-        androidCompactActions: [0, 1, 2],
-        processingState: _currentState,
-        playing: info?.isPlaying ?? _player.isPlaying(),
-        position: info == null ? await _player.getCurrentPosition()
-            : Duration(seconds: (info.currentPosition ?? 0).toInt()),
+  /// Broadcasts the current state to all clients.
+  /// [extra] -- 需额外传输的数据（TODO xiong -- fix: extra为空的话接收端会接收失败）
+  Future<void> _broadcastPlayerState({VideoInfo? info, Map<String, dynamic>? extra, required bool needUpdateNotification}) async {
+    await AudioServiceBackground().setPlaybackState(
+      controls: [
+        MediaControl.skipToPrevious,
+        if (_player.isPlaying()) MediaControl.pause else MediaControl.play,
+        MediaControl.stop,
+        MediaControl.skipToNext,
+      ],
+      // systemActions: [
+      //   MediaAction.seekTo,
+      //   MediaAction.seekForward,
+      //   MediaAction.seekBackward,
+      // ],
+      androidCompactActions: [0, 1, 2],
+      processingState: _currentState,
+      playing: info?.isPlaying ?? _player.isPlaying(),
+      position: info == null ? await _player.getCurrentPosition()
+          : Duration(seconds: (info.currentPosition ?? 0).toInt()),
 //      bufferedPosition: _player.bufferedPosition,
-        speed: _player.getSpeed(),
-        extras: extra,
-        needUpdateNotification: needUpdateNotification,
-      );
-    }
+      speed: _player.getSpeed(),
+      extras: extra,
+      needUpdateNotification: needUpdateNotification,
+    );
+  }
 
-    @override
-    String getMediaId(MediaItem mediaItem) {
-      return mediaItem.id;
-    }
+  @override
+  String getMediaId(MediaItem mediaItem) {
+    return mediaItem.id;
+  }
 }
 
 class Seeker {

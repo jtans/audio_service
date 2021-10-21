@@ -14,41 +14,30 @@ import 'package:rxdart/rxdart.dart';
 void main() => runApp(MyApp());
 
 class MyApp extends StatelessWidget {
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Audio Service Demo',
       theme: ThemeData(primarySwatch: Colors.blue),
       // home: MainScreen(),
-      // initialRoute: '/main',
+      initialRoute: '/main',
       routes: {
         '/main':(context) => MainScreen(),
         '/page_audio':(context) => AudioPlayerPageRoute(),
       },
-      // onGenerateInitialRoutes: (name) {
-      //   return [MaterialPageRoute(builder: (context) {
-      //     print("xiong -- onGenerateInitialRoutes name = $name");
-      //     if (name == "/page_audio") {
-      //       return AudioPlayerPageRoute();
-      //     } else if (name == "/main") {
-      //       return MainScreen();
-      //     } else {
-      //       return MainScreen();
-      //     }
-      //   })];
+
+      // onGenerateRoute:  (RouteSettings settings) {
+      //   String? name = settings.name;
+      //   print("xiong -- onGenerateRoute name = $name");
+      //   if (name == '/main' || name == "/") {
+      //     return MaterialPageRoute(settings: settings, builder: (BuildContext context) => MainScreen());
+      //   }
+      //   if (name == '/page_audio') {
+      //     return MaterialPageRoute(settings: settings, builder: (BuildContext context) => AudioPlayerPageRoute());
+      //   }
+      //   return MaterialPageRoute(settings: settings, builder: (BuildContext context) => MainScreen());
       // },
-      onGenerateRoute:  (RouteSettings settings) {
-        String? name = settings.name;
-        print("xiong -- onGenerateRoute name = $name");
-        if (name == '/main' || name == "/") {
-          return MaterialPageRoute(settings: settings, builder: (BuildContext context) => MainScreen());
-        }
-        if (name == '/page_audio') {
-          return MaterialPageRoute(settings: settings, builder: (BuildContext context) => AudioPlayerPageRoute());
-        }
-        return MaterialPageRoute(settings: settings, builder: (BuildContext context) => MainScreen());
-      },
-      // home: _getRouter(window.defaultRouteName),
     );
   }
 }
@@ -57,31 +46,49 @@ void openAudioPage() {
   runApp(AudioPlayerPageRoute());
 }
 
-class MainScreen extends StatelessWidget {
+class MainScreen extends StatefulWidget {
 
-  // @override
-  // State<StatefulWidget> createState() {
-  //   return _MainScreenState();
-  // }
+  @override
+  State<StatefulWidget> createState() {
+    return _MainScreenState();
+  }
+}
 
-  // MainScreen(BuildContext context) {
-  //   print("xiong -- MainScreen Create, 是否通过通知栏跳转音频页：${AudioServiceControllerWrapper.hasNotificationClick}");
-  //   if (AudioServiceControllerWrapper.hasNotificationClick) {
-  //     print("xiong -- MainScreen 跳转音频页");
-  //     Navigator.push(context, MaterialPageRoute(builder: (context) {
-  //       return AudioPlayerPageRoute();
-  //     }));
-  //   }
-  //   AudioServiceControllerWrapper.notificationClickEventStream.listen((event) {
-  //     print("xiong -- MainScreen notificationClick = $event");
-  //     if (event == true) {
-  //       print("xiong -- MainScreen 接收到通知栏回调，跳转音频页");
-  //       Navigator.push(context, MaterialPageRoute(builder: (context) {
-  //         return AudioPlayerPageRoute();
-  //       }));
-  //     }
-  //   });
-  // }
+class _MainScreenState extends State<MainScreen> {
+
+  @override
+  void initState() {
+    super.initState();
+    AudioServiceControllerWrapper().connect(onConnectCallback: (connected) {
+      print("xiong --- MusicService connect result = $connected");
+      if (connected) {
+        _registerStreamCallback();
+      }
+    });
+  }
+
+  StreamSubscription? _notificationClickSubscription;
+  void _registerStreamCallback() {
+    _notificationClickSubscription = AudioServiceControllerWrapper.notificationClickEventStream.listen((event) {
+      print("xiong -- MainScreen notificationClick = $event");
+      if (event == true) {
+        print("xiong -- MainScreen 接收到通知栏回调，跳转音频页");
+        navigatorPushName(context, '/page_audio');
+      }
+    });
+  }
+
+  void _unregisterStreamCallback() {
+    _notificationClickSubscription?.cancel();
+  }
+
+  @override
+  void dispose() {
+    _unregisterStreamCallback();
+    AudioServiceControllerWrapper().disconnect();
+
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -90,99 +97,22 @@ class MainScreen extends StatelessWidget {
         title: const Text('Audio Service Demo - Refactor'),
       ),
       body: Center(
-        child: Column(
-          children: [
-            RaisedButton(
-              onPressed: () {
-                Navigator.push(context, MaterialPageRoute(builder: (context) {
-                  return AudioPlayerPageRoute();
-                }));
-              },
-              child: Text('跳转音频播放页'),
-            ),
-            // StreamBuilder<bool>(
-            //   stream: AudioServiceControllerWrapper.notificationClickEventStream,
-            //   builder: (context, snapshot) {
-            //     if(snapshot.data != null && snapshot.data == true) {
-            //       print("xiong -- AudioServiceController notificationClickEventStream 跳转音频播放页"
-            //           ", Notification Click Status: ${snapshot.data}");
-            //       Navigator.push(context, MaterialPageRoute(builder: (context) {
-            //         return AudioPlayerPageRoute();
-            //       }));
-            //     }
-            //     return Text(
-            //       'Notification Click Status: ${snapshot.data}',
-            //     );
-            //   },
-            // ),
-          ],
-        )
+          child: Column(
+            children: [
+              RaisedButton(
+                onPressed: () {
+                  Navigator.push(context, MaterialPageRoute(builder: (context) {
+                    return AudioPlayerPageRoute();
+                  }));
+                },
+                child: Text('跳转音频播放页'),
+              ),
+            ],
+          )
       ),
     );
   }
 }
-
-// class _MainScreenState extends State<MainScreen> {
-//
-//   @override
-//   void initState() {
-//     super.initState();
-//     print("xiong -- MainScreen initState, 是否通过通知栏跳转音频页：${AudioServiceControllerWrapper.hasNotificationClick}");
-//     if (AudioServiceControllerWrapper.hasNotificationClick) {
-//       print("xiong -- MainScreen 跳转音频页");
-//       Navigator.push(context, MaterialPageRoute(builder: (context) {
-//         return AudioPlayerPageRoute();
-//       }));
-//     }
-//     AudioServiceControllerWrapper.notificationClickEventStream.listen((event) {
-//       print("xiong -- MainScreen notificationClick = $event");
-//       if (event == true) {
-//         print("xiong -- MainScreen 接收到通知栏回调，跳转音频页");
-//         Navigator.push(context, MaterialPageRoute(builder: (context) {
-//           return AudioPlayerPageRoute();
-//         }));
-//       }
-//     });
-//   }
-//
-//   @override
-//   Widget build(BuildContext context) {
-//     return Scaffold(
-//       appBar: AppBar(
-//         title: const Text('Audio Service Demo - Refactor'),
-//       ),
-//       body: Center(
-//           child: Column(
-//             children: [
-//               RaisedButton(
-//                 onPressed: () {
-//                   Navigator.push(context, MaterialPageRoute(builder: (context) {
-//                     return AudioPlayerPageRoute();
-//                   }));
-//                 },
-//                 child: Text('跳转音频播放页'),
-//               ),
-//               // StreamBuilder<bool>(
-//               //   stream: AudioServiceControllerWrapper().notificationClickEventStream,
-//               //   builder: (context, snapshot) {
-//               //     if(snapshot.data != null && snapshot.data == true) {
-//               //       print("xiong -- AudioServiceController notificationClickEventStream 跳转音频播放页"
-//               //           ", Notification Click Status: ${snapshot.data}");
-//               //       Navigator.push(context, MaterialPageRoute(builder: (context) {
-//               //         return AudioPlayerPageRoute();
-//               //       }));
-//               //     }
-//               //     return Text(
-//               //       'Notification Click Status: ${snapshot.data}',
-//               //     );
-//               //   },
-//               // ),
-//             ],
-//           )
-//       ),
-//     );
-//   }
-// }
 
 
 List<String> mp3List = [
@@ -192,6 +122,24 @@ List<String> mp3List = [
   "https://s3.amazonaws.com/scifri-segments/scifri201711241.mp3",
 ];
 
+void navigatorPushRoute(BuildContext context, Route route) {
+  Navigator.of(context).push(route);
+}
+
+void navigatorPushName(BuildContext context, String routeName) {
+  Future.delayed(Duration.zero, (){
+    Navigator.of(context).pushNamed(routeName);
+  });
+}
+
+void navigatorPop(BuildContext context) {
+  Future.delayed(Duration.zero, (){
+    if (Navigator.canPop(context)) {
+      Navigator.of(context).pop();
+    }
+  });
+}
+
 //音频播放页面
 class AudioPlayerPageRoute extends StatefulWidget {
 
@@ -199,53 +147,30 @@ class AudioPlayerPageRoute extends StatefulWidget {
   _AudioPlayerState createState() {
     return _AudioPlayerState();
   }
-
-  // @override
-  // Widget build(BuildContext context) {
-  //   return Scaffold(
-  //     appBar: AppBar(
-  //       title: Text('音频播放页'),
-  //       leading: IconButton(
-  //         icon: Icon(
-  //           Icons.arrow_back_sharp,
-  //           color: Colors.white,
-  //         ),
-  //         onPressed: () {
-  //           if (Navigator.canPop(context)) {
-  //             Navigator.pop(context);
-  //           }
-  //         },
-  //       ),
-  //     ),
-  //     body: Center(
-  //       child: AudioServiceLocalWidget(
-  //         child: AudioPlayerWidget(),
-  //         onConnectResult: (success) {
-  //           print("xiong --- MusicService connect result = $success");
-  //           AudioServiceControllerWrapper().start(
-  //             backgroundTask: _audioPlayerTaskEntryPoint,
-  //             androidNotificationChannelName: 'Audio Service Demo',
-  //             // Enable this if you want the Android service to exit the foreground state on pause.
-  //             androidStopForegroundOnPause: true,
-  //             androidNotificationColor: 0xFF2196f3,
-  //             androidNotificationIcon: 'mipmap/ic_launcher',
-  //             androidEnableQueue: true,
-  //           ).then((value) {
-  //               print("xiong --- MusicService start result = $value");
-  //               if (value) {
-  //                 AudioServiceControllerWrapper().customAction(
-  //                     CUSTOM_CMD_ADD_MP3_RES, mp3List); //MediaLibrary().items
-  //               }
-  //             },
-  //           );
-  //         },
-  //       ),
-  //     ),
-  //   );
-  // }
 }
 
 class _AudioPlayerState extends State<AudioPlayerPageRoute> {
+
+  @override
+  void initState() {
+    super.initState();
+
+    AudioServiceControllerWrapper().start(
+      backgroundTask: _audioPlayerTaskEntryPoint,
+      androidNotificationChannelName: 'Audio Service Demo',
+      // Enable this if you want the Android service to exit the foreground state on pause.
+      androidStopForegroundOnPause: true,
+      androidNotificationColor: 0xFF2196f3,
+      androidNotificationIcon: 'mipmap/ic_launcher',
+      androidEnableQueue: true,
+    ).then((value) {
+      print("xiong --- MusicService start result = $value");
+      if (value || AudioServiceControllerWrapper().isRunning) {
+        AudioServiceControllerWrapper().customAction(
+            CUSTOM_CMD_ADD_MP3_RES, mp3List); //MediaLibrary().items
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -258,35 +183,37 @@ class _AudioPlayerState extends State<AudioPlayerPageRoute> {
             color: Colors.white,
           ),
           onPressed: () {
-            if (Navigator.canPop(context)) {
-              Navigator.pop(context);
-            }
+            navigatorPop(context);
+            // if (Navigator.canPop(context)) {
+            //   Navigator.pop(context);
+            // }
           },
         ),
       ),
       body: Center(
-        child: AudioServiceLocalWidget(
-          child: AudioPlayerWidget(),
-          onConnectResult: (success) {
-            print("xiong --- MusicService connect result = $success");
-            AudioServiceControllerWrapper().start(
-              backgroundTask: _audioPlayerTaskEntryPoint,
-              androidNotificationChannelName: 'Audio Service Demo',
-              // Enable this if you want the Android service to exit the foreground state on pause.
-              androidStopForegroundOnPause: true,
-              androidNotificationColor: 0xFF2196f3,
-              androidNotificationIcon: 'mipmap/ic_launcher',
-              androidEnableQueue: true,
-            ).then((value) {
-              print("xiong --- MusicService start result = $value");
-              if (value || AudioServiceControllerWrapper().isRunning) {
-                AudioServiceControllerWrapper().customAction(
-                    CUSTOM_CMD_ADD_MP3_RES, mp3List); //MediaLibrary().items
-              }
-            },
-            );
-          },
-        ),
+        child: AudioPlayerWidget(),
+        // child: AudioServiceLocalWidget(
+        //   child: AudioPlayerWidget(),
+        //   onConnectResult: (success) {
+        //     print("xiong --- MusicService connect result = $success");
+        //     AudioServiceControllerWrapper().start(
+        //       backgroundTask: _audioPlayerTaskEntryPoint,
+        //       androidNotificationChannelName: 'Audio Service Demo',
+        //       // Enable this if you want the Android service to exit the foreground state on pause.
+        //       androidStopForegroundOnPause: true,
+        //       androidNotificationColor: 0xFF2196f3,
+        //       androidNotificationIcon: 'mipmap/ic_launcher',
+        //       androidEnableQueue: true,
+        //     ).then((value) {
+        //       print("xiong --- MusicService start result = $value");
+        //       if (value || AudioServiceControllerWrapper().isRunning) {
+        //         AudioServiceControllerWrapper().customAction(
+        //             CUSTOM_CMD_ADD_MP3_RES, mp3List); //MediaLibrary().items
+        //       }
+        //     },
+        //     );
+        //   },
+        // ),
       ),
     );
   }
@@ -427,13 +354,10 @@ class AudioPlayerWidget extends StatelessWidget {
         StreamBuilder<bool>(
           stream: AudioServiceControllerWrapper.notificationClickEventStream,
           builder: (context, snapshot) {
-            // if(snapshot.data != null && snapshot.data == true) {
-            //   print("xiong -- AudioServiceController notificationClickEventStream 跳转音频播放页"
-            //       ", Notification Click Status: ${snapshot.data}");
-            //   Navigator.push(context, MaterialPageRoute(builder: (context) {
-            //     return AudioPlayerPageRoute();
-            //   }));
-            // }
+            if(snapshot.data != null && snapshot.data == true) {
+              print("xiong -- AudioServiceController notificationClickEventStream 跳转音频播放页"
+                  ", Notification Click Status: ${snapshot.data}");
+            }
             return Text(
               'Notification Click Status: ${snapshot.data}',
             );
@@ -450,8 +374,7 @@ class AudioPlayerWidget extends StatelessWidget {
   ElevatedButton audioPlayerButton() => startButton(
         'AudioPlayer',
         () {
-          AudioServiceControllerWrapper()
-              .start(
+          AudioServiceControllerWrapper().start(
             backgroundTask: _audioPlayerTaskEntryPoint,
             androidNotificationChannelName: 'Audio Service Demo',
             // Enable this if you want the Android service to exit the foreground state on pause.
@@ -461,7 +384,7 @@ class AudioPlayerWidget extends StatelessWidget {
             androidEnableQueue: true,
           ).then((value) {
               print("xiong --- MusicService start result = $value");
-              if (value ) {
+              if (value) {
                 AudioServiceControllerWrapper().customAction(
                     CUSTOM_CMD_ADD_MP3_RES, mp3List); //MediaLibrary().items
               }
@@ -511,10 +434,10 @@ void _audioPlayerTaskEntryPoint() async {
 /// A stream reporting the combined state of the current queue and the current
 /// media item within that queue.
 Stream<QueueState> get _queueStateStream =>
-    Rx.combineLatest2<List<MediaItem>?, MediaItem?, QueueState>(
+    Rx.combineLatest2<List<MediaItem>?, Map?, QueueState>(
         AudioServiceControllerWrapper().queueStream,
         AudioServiceControllerWrapper().currentMediaItemStream,
-        (queue, mediaItem) => QueueState(queue, mediaItem));
+        (queue, mediaItemMap) => QueueState(queue, MediaItem(id: mediaItemMap!['id'], title: mediaItemMap['title'], album: mediaItemMap['displayTitle'])));
 
 class SeekBar extends StatefulWidget {
   final Duration duration;
