@@ -230,7 +230,7 @@ class AudioServiceController<T> {
         };
         if (testMode) {
           MethodChannel('ryanheise.com/audioServiceInverse')
-              .setMockMethodCallHandler(handler);
+              .setMethodCallHandler(handler);
         } else {
           _channel.setMethodCallHandler(handler);
         }
