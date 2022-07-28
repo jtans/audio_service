@@ -1,5 +1,8 @@
 package com.ryanheise.audioservice;
 
+import static com.ryanheise.audioservice.NotificationPendingManager.KEYCODE_BYPASS_PAUSE;
+import static com.ryanheise.audioservice.NotificationPendingManager.KEYCODE_BYPASS_PLAY;
+
 import android.app.Activity;
 import android.app.Notification;
 import android.app.NotificationChannel;
@@ -9,7 +12,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.media.AudioFocusRequest;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -40,14 +42,11 @@ import java.util.Set;
 
 public class AudioService extends MediaBrowserServiceCompat {
     private static final int NOTIFICATION_ID = 1124;
-    private static final int REQUEST_CONTENT_INTENT = 1000;
     private static final String MEDIA_ROOT_ID = "media_root_id";
     private static final String EMPTY_MEDIA_ROOT_ID = "empty_media_root_id";
     // See the comment in onMediaButtonEvent to understand how the BYPASS keycodes work.
     // We hijack KEYCODE_MUTE and KEYCODE_MEDIA_RECORD since the media session subsystem
     // considers these keycodes relevant to media playback and will pass them on to us.
-    public static final int KEYCODE_BYPASS_PLAY = KeyEvent.KEYCODE_MUTE;
-    public static final int KEYCODE_BYPASS_PAUSE = KeyEvent.KEYCODE_MEDIA_RECORD;
     public static final int MAX_COMPACT_ACTIONS = 3;
 
     private static volatile boolean running;
@@ -85,13 +84,10 @@ public class AudioService extends MediaBrowserServiceCompat {
             throw new IllegalStateException("AudioService already running");
         running = true;
 
-        Context context = activity.getApplicationContext();
+        contentIntent = NotificationPendingManager.buildCustomActionJumpActivityPendingIntent(activity, action);
         //TODO xiong -- test：使用AudioFragmentActivity测试
-//        Intent intent = new Intent(context, AudioFragmentActivity.class);
-        Intent intent = new Intent(context, activity.getClass());
-        intent.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
-        intent.setAction(action);
-        contentIntent = PendingIntent.getActivity(context, REQUEST_CONTENT_INTENT, intent, PendingIntent.FLAG_UPDATE_CURRENT);
+//        contentIntent = buildActionJumpToActivityPendingIntent(AudioFragmentActivity, action);
+
         AudioService.listener = listener;
         AudioService.resumeOnClick = resumeOnClick;
         AudioService.androidNotificationChannelName = androidNotificationChannelName;
@@ -201,33 +197,7 @@ public class AudioService extends MediaBrowserServiceCompat {
     NotificationCompat.Action action(String resource, String label, long actionCode) {
         int iconId = getResourceId(resource);
         return new NotificationCompat.Action(iconId, label,
-                buildMediaButtonPendingIntent(actionCode));
-    }
-
-    PendingIntent buildMediaButtonPendingIntent(long action) {
-        int keyCode = toKeyCode(action);
-        if (keyCode == KeyEvent.KEYCODE_UNKNOWN)
-            return null;
-        Intent intent = new Intent(this, MediaButtonReceiver.class);
-        intent.setAction(Intent.ACTION_MEDIA_BUTTON);
-        intent.putExtra(Intent.EXTRA_KEY_EVENT, new KeyEvent(KeyEvent.ACTION_DOWN, keyCode));
-        return PendingIntent.getBroadcast(this, keyCode, intent, 0);
-    }
-
-    PendingIntent buildDeletePendingIntent() {
-        Intent intent = new Intent(this, MediaButtonReceiver.class);
-        intent.setAction(MediaButtonReceiver.ACTION_NOTIFICATION_DELETE);
-        return PendingIntent.getBroadcast(this, 0, intent, 0);
-    }
-
-    public static int toKeyCode(long action) {
-        if (action == PlaybackStateCompat.ACTION_PLAY) {
-            return KEYCODE_BYPASS_PLAY;
-        } else if (action == PlaybackStateCompat.ACTION_PAUSE) {
-            return KEYCODE_BYPASS_PAUSE;
-        } else {
-            return PlaybackStateCompat.toKeyCode(action);
-        }
+                NotificationPendingManager.buildMediaKeyActionToBroadcastPendingIntent(this, actionCode));
     }
 
     void setState(List<NotificationCompat.Action> actions, int actionBits, int[] compactActionIndices,
@@ -308,7 +278,7 @@ public class AudioService extends MediaBrowserServiceCompat {
                 .setMediaSession(mediaSession.getSessionToken())
                 .setShowActionsInCompactView(compactActionIndices)
                 .setShowCancelButton(true)
-                .setCancelButtonIntent(buildMediaButtonPendingIntent(PlaybackStateCompat.ACTION_STOP))
+                .setCancelButtonIntent(NotificationPendingManager.buildMediaKeyActionToBroadcastPendingIntent(this, PlaybackStateCompat.ACTION_STOP))
         );
         if (androidNotificationOngoing)
             builder.setOngoing(true);
@@ -326,7 +296,7 @@ public class AudioService extends MediaBrowserServiceCompat {
                     .setSmallIcon(iconId)
                     .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
                     .setShowWhen(false)
-                    .setDeleteIntent(buildDeletePendingIntent());
+                    .setDeleteIntent(NotificationPendingManager.buildDeleteNotificationPendingIntent(this));
             if (notificationColor != null)
                 notificationBuilder.setColor(notificationColor);
         }
@@ -464,8 +434,7 @@ public class AudioService extends MediaBrowserServiceCompat {
         instance = this;
         notificationChannelId = getApplication().getPackageName() + ".channel";
 
-        mediaSession = new MediaSessionCompat(this, "media-session");
-        mediaSession.setMediaButtonReceiver(null); // TODO: Make this configurable
+        mediaSession = new MediaSessionCompat(this, "media-session", null, NotificationPendingManager.buildCreateMediaSessionPendingIntent(this));
         mediaSession.setFlags(MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS | MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS);
         mStateBuilder = new PlaybackStateCompat.Builder()
                 .setActions(PlaybackStateCompat.ACTION_PLAY);

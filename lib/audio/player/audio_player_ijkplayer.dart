@@ -171,6 +171,10 @@ class FKIjkPlayer {
     mediaController.seekTo(position.inMilliseconds);
   }
 
+  Future<void> prepareAsync() async {
+    await mediaController.prepareAsync();
+  }
+
   Future<void> play() async {
     await mediaController.start();
   }
@@ -261,6 +265,11 @@ class IjkAudioPlayer implements IAudioPlayer {
   }
 
   @override
+  Future<void> prepareAsync() async {
+    await mediaController.prepareAsync();
+  }
+
+  @override
   Future<void> play() async {
     await mediaController.play();
   }
@@ -318,6 +327,7 @@ class IjkAudioPlayer implements IAudioPlayer {
   Future<VideoInfo> getVideoInfo() async {
     return mediaController.getVideoInfo();
   }
+
 }
 
 /// about video info

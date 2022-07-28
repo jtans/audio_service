@@ -16,6 +16,8 @@ abstract class IAudioPlayer {
   ///[position] -- 目标进度：单位是秒, 如1秒100毫秒=1.1s
   Future<void> seekTo(Duration position);
 
+  Future<void> prepareAsync();
+
   ///播放
   Future<void> play();
 
