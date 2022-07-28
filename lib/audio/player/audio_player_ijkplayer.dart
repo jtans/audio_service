@@ -97,6 +97,7 @@ class FKIjkPlayer {
   VideoInfo? videoInfo;
 
   StreamController<VideoInfo> _streamControllerVideoInfo =
+
   StreamController.broadcast();
   Stream<VideoInfo>? get videoInfoStream => _streamControllerVideoInfo.stream;
 
@@ -106,6 +107,7 @@ class FKIjkPlayer {
 
   StreamController<FKijkState> _streamControllerStatus =
   StreamController.broadcast();
+
   Stream<FKijkState>? get statusStream => _streamControllerStatus.stream;
   StreamSubscription? _streamSubscriptionCurrentPosUpdate;
 
@@ -115,10 +117,13 @@ class FKIjkPlayer {
     //监听当前播放位置
     _streamSubscriptionCurrentPosUpdate =
         mediaController.onCurrentPosUpdate.listen((event) {
-          currentPosition = event;
-          getVideoInfo();
-          _streamControllerPlaying.add(mediaController.state == FijkState.started);
-        });
+      currentPosition = event;
+      getVideoInfo().then((value) {
+        _streamControllerVideoInfo.add(value);
+      });
+      _streamControllerPlaying.add(mediaController.state == FijkState.started);
+    });
+
   }
 
   void dispose() {
@@ -395,3 +400,4 @@ class VideoInfo {
     return json.encode(_map);
   }
 }
+
