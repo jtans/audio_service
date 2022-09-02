@@ -31,6 +31,12 @@ android {
     lintOptions {
         disable 'InvalidPackage'
     }
+
+    repositories {
+        flatDir {
+            dirs 'libs'
+        }
+    }
 }
 
 dependencies {

@@ -17,7 +17,8 @@ dependencies:
 #    git:
 #      url: https://github.com/jtans/flutter_ijkplayer.git
 #      ref: nullsafety
-  fijkplayer: ^0.10.0
+  fijkplayer: #^0.10.0
+    git: https://github.com/jtans/fijkplayer.git
   js: ^0.6.3
   flutter:
     sdk: flutter
