@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:audio_service/audio/converter/audio_media_type_converter.dart';
 import 'package:audio_service/audio/player/audio_player_ijkplayer.dart';
 import 'package:audio_session/audio_session.dart';
-
+import 'package:fijkplayer/fijkplayer.dart';
 import 'audio_service_background.dart';
 import 'task_audio_background_base.dart';
 import 'package:audio_service/audio/media/audio_media_resource.dart';
@@ -155,19 +155,19 @@ class AudioPlayerBackgroundTask extends BackgroundAudioTask<MediaItem> {
     // Shut down this audio.task
     await super.onStop();
   }
-
-  void startQueryPosition(Duration step) {
-    _positionTimer = Timer.periodic(step, (timer) {
-      // print("xiong -- timer call _broadcastPlayerState");
-      _player.getVideoInfo();
-      // _player.getDuration().then((value) {
-      // print("xiong -- timer call _broadcastPlayerState duration = $value");
-      // _broadcastPlayerState(info: _player.mediaController.videoInfo,
-      //     extra: {EXTRA_PLAYER_DURATION : value.inSeconds},
-      //     needUpdateNotification: false);
-      // });
-    });
-  }
+  
+    void startQueryPosition(Duration step) {
+      _positionTimer = Timer.periodic(step, (timer) {
+        // print("xiong -- timer call _broadcastPlayerState");
+        _player.getVideoInfo();
+        // _player.getDuration().then((value) {
+        // print("xiong -- timer call _broadcastPlayerState duration = $value");
+        // _broadcastPlayerState(info: _player.mediaController.videoInfo,
+        //     extra: {EXTRA_PLAYER_DURATION : value.inSeconds},
+        //     needUpdateNotification: false);
+        // });
+      });
+    }
 
   /// Jumps away from the current position by [offset].
   Future<void> _seekRelative(Duration offset) async {

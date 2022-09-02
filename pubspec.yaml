@@ -1,10 +1,11 @@
 name: audio_service
 description: Flutter plugin to play audio in the background while the screen is off.
-version: 0.17.6
+version: 0.17.7
 homepage: https://github.com/ryanheise/audio_service
+publish_to: none
 
 environment:
-  sdk: ">=2.12.0 <3.0.0"
+  sdk: ">=2.14.4 <3.0.0"
   flutter: ">=1.12.13+hotfix.5"
 
 dependencies:
@@ -17,7 +18,9 @@ dependencies:
 #    git:
 #      url: https://github.com/jtans/flutter_ijkplayer.git
 #      ref: nullsafety
-  fijkplayer: #^0.10.0
+  # fijkplayer: ^0.10.0
+  fijkplayer:
+    #path: /Users/ts/fijkplayer
     git: https://github.com/jtans/fijkplayer.git
   js: ^0.6.3
   flutter:
